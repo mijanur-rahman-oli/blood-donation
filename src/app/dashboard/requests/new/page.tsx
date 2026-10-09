@@ -15,6 +15,8 @@ import {
   Select,
   Textarea,
 } from "@/components/admin/primitives";
+import { PageContainer } from "@/components/shared/PageContainer";
+import { PageHeader } from "@/components/shared/PageHeader";
 import * as bloodRequestsApi from "@/lib/api/bloodRequests";
 import { extractApiError } from "@/lib/api/_errors";
 import {
@@ -115,15 +117,11 @@ export default function NewRequestWizardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          New Blood Request
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Tell us about the patient — we will handle the rest.
-        </p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="New Blood Request"
+        description="Tell us about the patient — we will handle the rest."
+      />
 
       <ProgressIndicator currentStep={step} />
 
@@ -164,7 +162,7 @@ export default function NewRequestWizardPage() {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }
 

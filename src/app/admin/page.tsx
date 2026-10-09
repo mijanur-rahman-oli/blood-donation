@@ -14,6 +14,8 @@ import {
 import { StatCard } from "@/components/shared/StatCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { PageContainer } from "@/components/shared/PageContainer";
+import { PageHeader } from "@/components/shared/PageHeader";
 import * as adminApi from "@/lib/api/admin";
 import * as bloodRequestsApi from "@/lib/api/bloodRequests";
 import { BLOOD_GROUP_LABELS, PRIORITY_LABELS } from "@/lib/constants";
@@ -88,13 +90,11 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Dashboard
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Platform overview</p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="Dashboard"
+        description="Platform overview"
+      />
 
       {/* KPI cards */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -324,7 +324,7 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </section>
-    </div>
+    </PageContainer>
   );
 }
 

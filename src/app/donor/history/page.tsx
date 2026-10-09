@@ -13,6 +13,8 @@ import {
 } from "@/components/admin/primitives";
 import { StatCard } from "@/components/shared/StatCard";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
+import { PageContainer } from "@/components/shared/PageContainer";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Pagination } from "@/components/shared/Pagination";
 import * as donorsApi from "@/lib/api/donors";
@@ -116,15 +118,11 @@ export default function DonorHistoryPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Donation History
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your lifetime donations
-        </p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="Donation History"
+        description="Your lifetime donations"
+      />
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {query.isLoading ? (
@@ -214,7 +212,7 @@ export default function DonorHistoryPage() {
           />
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

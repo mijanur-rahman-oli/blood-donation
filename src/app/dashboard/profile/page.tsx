@@ -16,6 +16,8 @@ import {
   Label,
   Skeleton,
 } from "@/components/admin/primitives";
+import { PageContainer } from "@/components/shared/PageContainer";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { AUTH_ME_QUERY_KEY, useAuth } from "@/hooks/useAuth";
 import * as usersApi from "@/lib/api/users";
 import { extractApiError } from "@/lib/api/_errors";
@@ -88,13 +90,11 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Profile Settings
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Manage your account</p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="Profile Settings"
+        description="Manage your account"
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -202,7 +202,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageContainer>
   );
 }
 

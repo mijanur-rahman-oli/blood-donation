@@ -15,6 +15,8 @@ import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Pagination } from "@/components/shared/Pagination";
 import { PaginationMeta } from "@/components/shared/PaginationMeta";
+import { PageContainer } from "@/components/shared/PageContainer";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { ChevronRightIcon } from "@/components/admin/icons";
 import * as adminApi from "@/lib/api/admin";
 import { useUpdateSearchParams } from "@/hooks/useUpdateSearchParams";
@@ -192,15 +194,11 @@ export default function AdminAuditLogsPage() {
   const meta = query.data?.meta;
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Audit Logs
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Every critical action, recorded
-        </p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="Audit Logs"
+        description="Every critical action, recorded"
+      />
 
       <Card>
         <CardContent className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -289,6 +287,6 @@ export default function AdminAuditLogsPage() {
           ) : null}
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }

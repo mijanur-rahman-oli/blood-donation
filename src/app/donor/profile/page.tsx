@@ -17,6 +17,8 @@ import {
   Select,
   Skeleton,
 } from "@/components/admin/primitives";
+import { PageContainer } from "@/components/shared/PageContainer";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import * as donorsApi from "@/lib/api/donors";
 import { extractApiError } from "@/lib/api/_errors";
@@ -160,15 +162,11 @@ function CreateView({
   saving: boolean;
 }) {
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Create your donor profile
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Tell us about yourself so we can match you with compatible requests.
-        </p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="Create your donor profile"
+        description="Tell us about yourself so we can match you with compatible requests."
+      />
 
       <Card>
         <CardContent>
@@ -260,7 +258,7 @@ function CreateView({
           </form>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -327,15 +325,11 @@ function EditView({
   const eligible = isEligible(profile.weightKg, profile.ageYears);
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Donor profile
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your blood donation profile
-        </p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="Donor profile"
+        description="Your blood donation profile"
+      />
 
       <Card>
         <CardHeader>
@@ -505,7 +499,7 @@ function EditView({
           Member since {formatDate(new Date().toISOString())}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }
 

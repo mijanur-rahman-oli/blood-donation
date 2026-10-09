@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 
-import { Footer } from "@/components/shared/Footer";
-import { Navbar } from "@/components/shared/Navbar";
+import { LayoutChrome } from "@/components/shared/LayoutChrome";
 import { BackToTop } from "@/components/shared/BackToTop";
+import { Toaster } from "@/components/shared/Toaster";
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/constants";
 
 import "./globals.css";
@@ -12,13 +12,13 @@ import { Providers } from "./providers";
 /* ----------------------------------------------------------------------
    Root layout
    ----------------------------------------------------------------------
-   - Loads Inter via `next/font/google` (no layout shift, per PROJECT.md
-     "Stack: Fonts").
+   - Loads Inter via `next/font/google` (no layout shift).
    - Wires the metadata API: title template, description, OpenGraph,
      Twitter, canonical URL, robots hints.
-   - Renders the Providers tree, the role-aware Navbar, the page main,
-     and the Footer. Children are typed inline (the `LayoutProps<"/">`
-     auto-generated type is not available at compile time without a build).
+   - Renders the Providers tree, then <LayoutChrome>{children}</LayoutChrome>
+     which conditionally mounts the public <Navbar /> + <Footer /> —
+     never on /admin, /dashboard, /donor, /login, /register, /payment.
+   - Mounts <BackToTop /> and the global <Toaster /> once, at the root.
    ---------------------------------------------------------------------- */
 
 const inter = Inter({
@@ -102,10 +102,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="flex min-h-screen flex-col bg-background font-sans text-foreground">
         <Providers>
-          <Navbar />
-          <main className="min-h-screen flex-1">{children}</main>
-          <Footer />
+          <LayoutChrome>{children}</LayoutChrome>
           <BackToTop />
+          <Toaster richColors position="top-right" />
         </Providers>
       </body>
     </html>

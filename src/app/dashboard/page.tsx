@@ -15,6 +15,8 @@ import {
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { StatCard } from "@/components/shared/StatCard";
+import { PageContainer } from "@/components/shared/PageContainer";
+import { PageHeader } from "@/components/shared/PageHeader";
 import * as bloodRequestsApi from "@/lib/api/bloodRequests";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -65,15 +67,11 @@ export default function DashboardOverviewPage() {
   const counts = computeCounts(requests);
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Welcome back, {firstName}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Here&apos;s your request activity
-        </p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title={`Welcome back, ${firstName}`}
+        description="Here's your request activity"
+      />
 
       {/* KPIs */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -244,7 +242,7 @@ export default function DashboardOverviewPage() {
           ) : null}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }
 

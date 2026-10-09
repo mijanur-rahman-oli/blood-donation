@@ -13,6 +13,8 @@ import {
 } from "@/components/admin/primitives";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Pagination } from "@/components/shared/Pagination";
+import { PageContainer } from "@/components/shared/PageContainer";
+import { PageHeader } from "@/components/shared/PageHeader";
 import * as donorsApi from "@/lib/api/donors";
 import { toApiError } from "@/lib/api/_errors";
 import {
@@ -62,15 +64,11 @@ export default function DonorRequestsPage() {
     Boolean(filters.priority) || filters.sortBy !== "createdAt";
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Compatible Requests
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Blood requests matching your blood group
-        </p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="Compatible Requests"
+        description="Blood requests matching your blood group"
+      />
 
       <Card>
         <CardContent className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -155,7 +153,7 @@ export default function DonorRequestsPage() {
           />
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

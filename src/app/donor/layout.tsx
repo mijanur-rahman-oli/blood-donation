@@ -8,8 +8,9 @@ import { DonorSidebar, DonorTopbar } from "@/components/donor/DonorSidebar";
    (donor) layout
    ----------------------------------------------------------------------
    Server component. Wraps every donor page in
-   <RoleGuard allow={["DONOR"]}> and renders the shared sidebar +
-   topbar.
+   <RoleGuard allow={["DONOR"]>. No public Navbar or Footer is mounted
+   here — the root layout's <LayoutChrome> already suppresses both for
+   /donor/*.
    ---------------------------------------------------------------------- */
 
 export default function DonorLayout({ children }: { children: ReactNode }) {
@@ -19,7 +20,7 @@ export default function DonorLayout({ children }: { children: ReactNode }) {
         <DonorSidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <DonorTopbar />
-          <main className="flex-1 px-4 py-6 md:px-6 md:py-8">{children}</main>
+          <main className="flex-1 min-w-0 overflow-x-hidden">{children}</main>
         </div>
       </div>
     </RoleGuard>

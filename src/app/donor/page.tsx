@@ -25,6 +25,8 @@ import {
 import { StatCard } from "@/components/shared/StatCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { PageContainer } from "@/components/shared/PageContainer";
+import { PageHeader } from "@/components/shared/PageHeader";
 import * as donorsApi from "@/lib/api/donors";
 import { toApiError } from "@/lib/api/_errors";
 import * as assignmentsApi from "@/lib/api/assignments";
@@ -143,15 +145,11 @@ export default function DonorDashboardPage() {
   const historyPreview = (historyQuery.data?.result ?? []).slice(0, 3);
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Donor Dashboard
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your availability and assignments
-        </p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="Donor Dashboard"
+        description="Manage your availability and assignments"
+      />
 
       <Card>
         <CardContent className="flex flex-col items-start justify-between gap-4 p-5 sm:flex-row sm:items-center">
@@ -419,7 +417,7 @@ export default function DonorDashboardPage() {
           </CardContent>
         </Card>
       </section>
-    </div>
+    </PageContainer>
   );
 }
 

@@ -22,6 +22,8 @@ import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Pagination } from "@/components/shared/Pagination";
 import { PaginationMeta } from "@/components/shared/PaginationMeta";
+import { PageContainer } from "@/components/shared/PageContainer";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { MoreHorizontalIcon } from "@/components/admin/icons";
@@ -245,13 +247,11 @@ export default function AdminUsersPage() {
   const meta = query.data?.meta;
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Users
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Manage platform users</p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="Users"
+        description="Manage platform users"
+      />
 
       <Card>
         <CardContent className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -331,7 +331,7 @@ export default function AdminUsersPage() {
           ) : null}
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

@@ -20,6 +20,8 @@ import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Pagination } from "@/components/shared/Pagination";
 import { PaginationMeta } from "@/components/shared/PaginationMeta";
+import { PageContainer } from "@/components/shared/PageContainer";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import {
   CopyIcon,
@@ -141,15 +143,11 @@ export default function PaymentsPage() {
   const meta = query.data?.meta;
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Payment History
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your transaction records
-        </p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="Payment History"
+        description="Your transaction records"
+      />
 
       {query.isError ? (
         <EmptyState
@@ -262,7 +260,7 @@ export default function PaymentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 }
 
