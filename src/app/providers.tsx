@@ -42,9 +42,13 @@ export const toast = {
    Root client provider tree:
      1. QueryClientProvider  — wires the singleton query client so every
         useQuery / useMutation in the app shares its cache.
-     2. Auth hydration       — on mount, calls `useAuthStore().hydrate()`
-        exactly once so the Zustand store is populated before the
-        Navbar/UserMenu render.
+     2. Auth hydration       — on mount, calls `useAuthStore.hydrate()`
+        exactly once. This restores the session from the httpOnly
+        `accessToken` cookie via /api/auth/me and MUST complete before
+        the route guard reads `isHydrated` to decide whether to render
+        a skeleton or a redirect. The Zustand store has an internal
+        guard against duplicate hydrations, so it is also safe to call
+        `hydrate()` again after a full-page navigation.
    The Sonner <Toaster /> is mounted by the root layout (not here) so
    that the same surface is shared by every route group.
    ---------------------------------------------------------------------- */
@@ -54,9 +58,15 @@ interface ProvidersProps {
 }
 
 export function Providers({ children }: ProvidersProps) {
+  // Subscribe to the hydrate action. `useAuthStore.getState().hydrate`
+  // is also fine here, but subscribing keeps the same idiom as the
+  // auth-store tests.
   const hydrate = useAuthStore((s) => s.hydrate);
 
   useEffect(() => {
+    // Fire and forget. The store flips `isHydrated` to true once the
+    // request resolves (success OR failure), so callers will always
+    // converge.
     void hydrate();
   }, [hydrate]);
 

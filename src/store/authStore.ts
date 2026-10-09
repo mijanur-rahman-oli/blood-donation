@@ -2,26 +2,35 @@
 
 import { create } from "zustand";
 
-import { api, extractApiError } from "@/lib/axios";
+import { extractApiError } from "@/lib/axios";
 import type { User } from "@/types";
 
 /* ----------------------------------------------------------------------
    Auth store (Zustand)
    ----------------------------------------------------------------------
    Holds the minimal session info needed for role-aware UI:
-     - `user`        : hydrated from /users/me on app boot
-     - `isHydrated`  : false until the first /users/me attempt completes
-                       (success or failure) so the UI can avoid hydration
-                       mismatch on the server-rendered shell
-     - `setUser`     : full `User` setter, used after `/users/me`
-     - `setSessionUser`: partial setter (id+name+email+role) used by the
-                       /api/auth/* responses that don't ship the full
-                       User document. Fills sensible defaults for the
-                       missing fields.
+     - `user`        : hydrated from /api/auth/me on app boot
+     - `isHydrated`  : false until the first /api/auth/me attempt
+                       completes (success or failure). The UI MUST NOT
+                       redirect based on auth state until this flips
+                       to true — otherwise the very first render after
+                       a page reload is treated as "signed out" and the
+                       user is bounced to /login while their session
+                       cookie is still perfectly valid.
+     - `setUser`     : full `User` setter, used after /api/auth/me
+     - `setSessionUser`: partial setter (id+name+email+role) used by
+                       the /api/auth/login response that doesn't ship
+                       the full User document. Fills sensible defaults
+                       for the missing fields.
      - `clear`       : clears the local store; the httpOnly cookies are
                        removed by the /api/auth/logout route handler
      - `hydrate`     : called from the root Providers on mount; performs
-                       GET /users/me exactly once per app boot
+                       GET /api/auth/me exactly once per app boot
+
+   The /api/auth/me route is a same-origin Next.js route handler that
+   reads the httpOnly `accessToken` cookie server-side, calls the
+   backend `/users/me` with the Bearer token, and returns the user.
+   We never expose the access token to client JavaScript.
    ---------------------------------------------------------------------- */
 
 interface AuthState {
@@ -33,7 +42,12 @@ interface AuthState {
 
 interface AuthActions {
   setUser: (user: User | null) => void;
-  setSessionUser: (input: { id: string; name: string; email: string; role: User["role"] }) => void;
+  setSessionUser: (input: {
+    id: string;
+    name: string;
+    email: string;
+    role: User["role"];
+  }) => void;
   clear: () => void;
   hydrate: () => Promise<void>;
 }
@@ -46,6 +60,12 @@ const initialState: AuthState = {
   isLoading: false,
   error: null,
 };
+
+interface AuthMeEnvelope {
+  success: boolean;
+  message?: string;
+  data?: User | null;
+}
 
 export const useAuthStore = create<AuthStore>((set) => ({
   ...initialState,
@@ -93,22 +113,52 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const res = await api.get<{ success: true; data: User }>("/users/me");
+      const res = await fetch("/api/auth/me", {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { accept: "application/json" },
+      });
+
+      if (res.status === 401 || res.status === 404) {
+        set({ user: null, isHydrated: true, isLoading: false, error: null });
+        return;
+      }
+
+      if (!res.ok) {
+        set({
+          user: null,
+          isHydrated: true,
+          isLoading: false,
+          error: `Failed to restore session (${res.status})`,
+        });
+        return;
+      }
+
+      const payload = (await res.json().catch(() => null)) as
+        | AuthMeEnvelope
+        | null;
+
+      if (!payload || payload.success !== true || !payload.data) {
+        set({ user: null, isHydrated: true, isLoading: false, error: null });
+        return;
+      }
+
       set({
-        user: res.data.data,
+        user: payload.data,
         isHydrated: true,
         isLoading: false,
         error: null,
       });
     } catch (error) {
-      // 401 is the expected unauthenticated case — silent, no error toast.
-      const status = (error as { response?: { status?: number } })?.response
-        ?.status;
+      // Network/parse failure: still flip isHydrated to true so the UI
+      // can settle on the unauthenticated state instead of an infinite
+      // loading screen.
       set({
         user: null,
         isHydrated: true,
         isLoading: false,
-        error: status === 401 ? null : extractApiError(error),
+        error: extractApiError(error, "Failed to restore session"),
       });
     }
   },

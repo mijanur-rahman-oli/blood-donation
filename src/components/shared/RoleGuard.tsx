@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
@@ -12,12 +12,22 @@ import type { Role } from "@/types";
    RoleGuard
    ----------------------------------------------------------------------
    Client-side guard for role-restricted routes. Used by the per-area
-   layouts (`/admin/layout.tsx`, `/dashboard/layout.tsx`, `/donor/layout.tsx`).
-   Behaviour:
-     - Wait for `useAuth().isHydrated` (Zustand store finished /users/me)
-     - If not authenticated → /login?redirect=<original>
-     - If authenticated but role not in `allow` → /unauthorized
-     - Otherwise render children
+   layouts (`/admin/layout.tsx`, `/dashboard/layout.tsx`,
+   `/donor/layout.tsx`).
+
+   Rules (in order):
+     1. If the auth store has not finished hydrating → render a
+        neutral Skeleton. NEVER redirect while unhydrated — the
+        middleware has already gated the route at the edge and
+        RoleGuard is only defense-in-depth.
+     2. If hydrated and `user === null` → redirect to
+        /login?redirect=<current pathname + search>.
+     3. If hydrated and `user.role` is not in `allow` → redirect to
+        /unauthorized.
+     4. Otherwise render `children`.
+
+   The redirect targets can be overridden via `loginPath` and
+   `unauthorizedPath` props.
    ---------------------------------------------------------------------- */
 
 export interface RoleGuardProps {
@@ -41,7 +51,7 @@ function GuardSkeleton({ className }: { className?: string }) {
       role="status"
       aria-live="polite"
       className={cn(
-        "container-app flex min-h-[60vh] flex-col gap-4 py-12",
+        "flex min-h-[60vh] flex-col gap-4 px-4 py-12 sm:px-6 lg:px-8",
         className,
       )}
     >
@@ -66,36 +76,45 @@ export function RoleGuard({
   className,
 }: RoleGuardProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, isAuthenticated, isHydrated } = useAuth();
+
+  // Build the redirect path once per render. We append the current
+  // pathname + search so the user lands back on the original URL after
+  // logging in.
+  const redirectTo = (() => {
+    if (typeof window === "undefined") return loginPath;
+    const full = pathname + window.location.search;
+    if (!full || full === "/") return loginPath;
+    return `${loginPath}?redirect=${encodeURIComponent(full)}`;
+  })();
 
   useEffect(() => {
     if (!isHydrated) return;
 
     if (!isAuthenticated) {
-      const current =
-        typeof window !== "undefined"
-          ? window.location.pathname + window.location.search
-          : "";
-      const redirect = current && current !== "/" ? `?redirect=${encodeURIComponent(current)}` : "";
-      router.replace(`${loginPath}${redirect}`);
+      router.replace(redirectTo);
       return;
     }
 
     if (user && !allow.includes(user.role)) {
       router.replace(unauthorizedPath);
     }
-  }, [isHydrated, isAuthenticated, user, allow, loginPath, unauthorizedPath, router]);
+  }, [isHydrated, isAuthenticated, user, allow, redirectTo, unauthorizedPath, router]);
 
+  // Rule 1: still hydrating — never redirect, just show a skeleton.
   if (!isHydrated) {
-    return fallback ?? <GuardSkeleton className={className} />;
+    return <>{fallback ?? <GuardSkeleton className={className} />}</>;
   }
 
+  // The redirect effect is scheduled. Render the skeleton in the
+  // intervening tick to avoid a flash of the wrong page.
   if (!isAuthenticated) {
-    return fallback ?? <GuardSkeleton className={className} />;
+    return <>{fallback ?? <GuardSkeleton className={className} />}</>;
   }
 
   if (user && !allow.includes(user.role)) {
-    return fallback ?? <GuardSkeleton className={className} />;
+    return <>{fallback ?? <GuardSkeleton className={className} />}</>;
   }
 
   return <>{children}</>;
