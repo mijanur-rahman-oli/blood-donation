@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 import { APP_NAME, APP_URL } from "@/lib/constants";

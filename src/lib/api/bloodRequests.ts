@@ -76,18 +76,20 @@ export async function create(
 export async function list(
   params: ListBloodRequestsParams = {},
 ): Promise<PaginatedResult<BloodRequest>> {
-  const res = await api.get<
-    ApiResponse<PaginatedResult<BloodRequest>>
-  >("/blood-requests", { params });
+  const res = await api.get<ApiResponse<PaginatedResult<BloodRequest>>>(
+    "/blood-requests",
+    { params },
+  );
   return unwrapList(res);
 }
 
 export async function search(
   params: SearchBloodRequestsParams,
 ): Promise<PaginatedResult<BloodRequest>> {
-  const res = await api.get<
-    ApiResponse<PaginatedResult<BloodRequest>>
-  >("/blood-requests/search", { params });
+  const res = await api.get<ApiResponse<PaginatedResult<BloodRequest>>>(
+    "/blood-requests/search",
+    { params },
+  );
   return unwrapList(res);
 }
 

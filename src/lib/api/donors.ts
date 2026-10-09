@@ -4,8 +4,8 @@ import type {
   BloodGroup,
   BloodRequest,
   DonorProfile,
+  DonorSearchResult,
   PaginatedResult,
-  User,
 } from "@/types";
 
 import { unwrapData, unwrapList } from "./_errors";
@@ -42,18 +42,6 @@ export interface SearchDonorsParams {
   q?: string;
   page?: number;
   limit?: number;
-}
-
-/**
- * `GET /donors/search` is Admin/Requester-only and returns the donor
- * objects shaped like `User` enriched with their donor profile fields.
- */
-export interface DonorSearchResult extends User {
-  bloodGroup: BloodGroup;
-  location: string;
-  availability: boolean;
-  totalDonations?: number;
-  lastDonationAt?: string | null;
 }
 
 export async function createProfile(
@@ -94,18 +82,20 @@ export async function updateAvailability(
 export async function getCompatibleRequests(
   params: { page?: number; limit?: number } = {},
 ): Promise<PaginatedResult<BloodRequest>> {
-  const res = await api.get<
-    ApiResponse<PaginatedResult<BloodRequest>>
-  >("/donors/requests", { params });
+  const res = await api.get<ApiResponse<PaginatedResult<BloodRequest>>>(
+    "/donors/requests",
+    { params },
+  );
   return unwrapList(res);
 }
 
 export async function getDonationHistory(
   params: { page?: number; limit?: number } = {},
 ): Promise<PaginatedResult<BloodRequest>> {
-  const res = await api.get<
-    ApiResponse<PaginatedResult<BloodRequest>>
-  >("/donors/donation-history", { params });
+  const res = await api.get<ApiResponse<PaginatedResult<BloodRequest>>>(
+    "/donors/donation-history",
+    { params },
+  );
   return unwrapList(res);
 }
 

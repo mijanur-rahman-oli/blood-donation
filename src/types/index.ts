@@ -126,6 +126,26 @@ export interface DonorProfile {
 }
 
 /* ----------------------------------------------------------------------
+   Donor search result
+   ----------------------------------------------------------------------
+   Shape returned by `GET /donors/search`. The backend flattens the
+   `DonorProfile` onto the `User` record so the result is the union of
+   both. Defined here so the API layer can type the list endpoint.
+   ---------------------------------------------------------------------- */
+export interface DonorSearchResult {
+  profileId: string;
+  userId: string;
+  name: string;
+  email: string;
+  phone: string;
+  bloodGroup: BloodGroup;
+  location: string;
+  availability: boolean;
+  totalDonations: number;
+  lastDonationDate: string | null;
+}
+
+/* ----------------------------------------------------------------------
    Blood request
    ---------------------------------------------------------------------- */
 

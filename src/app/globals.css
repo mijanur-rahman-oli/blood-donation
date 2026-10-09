@@ -1,85 +1,91 @@
 @import "tailwindcss";
 
 /* ----------------------------------------------------------------------
-   shadcn/ui CSS variables
+   shadcn/ui CSS variables (HSL channels)
    ----------------------------------------------------------------------
-   HSL channels are exposed so Tailwind utilities such as
-   `bg-primary`, `text-foreground`, and `border-border` resolve to
-   the same color in both light and dark themes. Tokens are sourced
-   from PROJECT.md -> "UI/UX Design System > Color Palette".
+   Tokens are sourced from PROJECT.md -> "UI/UX Design System > Color
+   Palette" and the shadcn convention of storing HSL channels (without
+   the `hsl()` wrapper) so Tailwind utilities can apply opacity
+   modifiers via `bg-primary/10` etc.
    ---------------------------------------------------------------------- */
 @layer base {
   :root {
-    /* Brand: blood-red primary */
-    --primary: 0 84% 51%;            /* red-600  #dc2626 */
-    --primary-hover: 0 74% 42%;       /* red-700  #b91c1c */
-    --primary-foreground: 0 0% 100%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 4%;
 
-    /* Page chrome */
-    --background: 0 0% 100%;          /* #ffffff */
-    --foreground: 0 0% 4%;            /* #0a0a0a */
-
-    /* Surfaces */
     --card: 0 0% 100%;
     --card-foreground: 0 0% 4%;
+
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 4%;
 
-    /* Subtle backgrounds + body text */
-    --muted: 240 5% 96%;              /* #f4f4f5 */
-    --muted-foreground: 240 4% 46%;
+    --primary: 0 84% 60%;
+    --primary-foreground: 0 0% 100%;
+
     --secondary: 240 5% 96%;
     --secondary-foreground: 240 6% 10%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+
     --accent: 240 5% 96%;
     --accent-foreground: 240 6% 10%;
 
-    /* Borders + focus */
-    --border: 240 6% 90%;             /* #e4e4e7 */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 6% 90%;
     --input: 240 6% 90%;
-    --ring: 0 84% 51%;
+    --ring: 0 84% 60%;
 
     /* Status palette */
-    --success: 142 71% 36%;           /* #16a34a */
-    --warning: 21 90% 48%;            /* #ea580c */
-    --destructive: 0 84% 51%;         /* #dc2626 */
-    --destructive-foreground: 0 0% 100%;
-    --info: 217 91% 60%;              /* #2563eb */
+    --success: 142 71% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
 
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 0 0% 4%;            /* #0a0a0a */
-    --foreground: 0 0% 98%;           /* #fafafa */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
 
     --card: 240 6% 10%;
     --card-foreground: 0 0% 98%;
+
     --popover: 240 6% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --muted: 240 4% 16%;              /* #27272a */
-    --muted-foreground: 240 5% 65%;
+    --primary: 0 84% 60%;
+    --primary-foreground: 0 0% 100%;
+
     --secondary: 240 4% 16%;
     --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 65%;
+
     --accent: 240 4% 16%;
     --accent-foreground: 0 0% 98%;
 
-    --border: 240 4% 16%;             /* #27272a */
-    --input: 240 4% 16%;
-    --ring: 0 84% 51%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --primary: 0 84% 51%;
-    --primary-hover: 0 74% 42%;
-    --primary-foreground: 0 0% 100%;
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 0 84% 60%;
+
+    --success: 142 71% 36%;
+    --warning: 38 92% 50%;
+    --info: 217 91% 60%;
   }
 }
 
 /* ----------------------------------------------------------------------
    Tailwind v4 theme mapping
-   ----------------------------------------------------------------------
-   Wire the CSS variables above into Tailwind's color namespace so
-   utility classes like `bg-primary`, `text-foreground`, `border-border`,
-   and `bg-success` are first-class citizens of the design system.
    ---------------------------------------------------------------------- */
 @theme inline {
   --color-background: hsl(var(--background));
@@ -91,7 +97,6 @@
   --color-popover-foreground: hsl(var(--popover-foreground));
 
   --color-primary: hsl(var(--primary));
-  --color-primary-hover: hsl(var(--primary-hover));
   --color-primary-foreground: hsl(var(--primary-foreground));
 
   --color-secondary: hsl(var(--secondary));
@@ -103,15 +108,19 @@
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
 
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
 
   --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
   --color-warning: hsl(var(--warning));
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-warning-foreground: hsl(var(--warning-foreground));
   --color-info: hsl(var(--info));
+  --color-info-foreground: hsl(var(--info-foreground));
 
   --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
 
@@ -125,7 +134,7 @@
    ---------------------------------------------------------------------- */
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
 
   html {
@@ -135,23 +144,27 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
   }
 
   /* WCAG AA: every interactive element gets a visible focus ring. */
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    outline: none;
+    box-shadow:
+      0 0 0 2px hsl(var(--background)),
+      0 0 0 4px hsl(var(--ring));
   }
 
-  /* Selection styling matches the brand. */
   ::selection {
     background-color: hsl(var(--primary) / 0.2);
     color: hsl(var(--foreground));
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight;
+    letter-spacing: -0.01em;
   }
 }
 
@@ -160,14 +173,41 @@
    ---------------------------------------------------------------------- */
 @layer utilities {
   .container-app {
-    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+    max-width: 80rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .container-app {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-app {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
   }
 
   .section-pad {
-    @apply py-16 md:py-24;
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+
+  @media (min-width: 768px) {
+    .section-pad {
+      padding-top: 6rem;
+      padding-bottom: 6rem;
+    }
   }
 
   .card-pad {
-    @apply p-6;
+    padding: 1.5rem;
   }
 }

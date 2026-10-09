@@ -1,6 +1,6 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, type AxiosResponse } from "axios";
 
-import type { ApiError, ApiResponse } from "@/types";
+import type { ApiError, ApiResponse, PaginatedResult, PaginationMeta } from "@/types";
 
 /**
  * Custom error class thrown by every API helper when the backend returns
@@ -23,10 +23,10 @@ export class ApiCallError extends Error {
  * Unwrap a backend `ApiResponse<T>` (envelope) into its `data` field, or
  * throw an `ApiCallError` if the envelope signals failure.
  *
- * All API helpers route their axios responses through this function so
- * the throwing contract is uniform across the entire surface.
+ * Takes the full `AxiosResponse` so callers can read `response.status`
+ * when constructing the error.
  */
-export function unwrap<T>(response: { data: ApiResponse<T> }): T {
+export function unwrap<T>(response: AxiosResponse<ApiResponse<T>>): T {
   const body = response.data;
   if (body && body.success === true) {
     return body.data;
@@ -44,9 +44,9 @@ export function unwrap<T>(response: { data: ApiResponse<T> }): T {
  * so this helper narrows the inner shape and returns just the
  * `PaginatedResult<T>`.
  */
-export function unwrapList<T>(response: {
-  data: ApiResponse<{ meta: import("@/types").PaginationMeta; result: T[] }>;
-}): import("@/types").PaginatedResult<T> {
+export function unwrapList<T>(
+  response: AxiosResponse<ApiResponse<{ meta: PaginationMeta; result: T[] }>>,
+): PaginatedResult<T> {
   return unwrap(response);
 }
 
@@ -54,7 +54,7 @@ export function unwrapList<T>(response: {
  * Unwrap a plain object endpoint that returns `data: T` directly. Provided
  * for clarity at the call site; equivalent to `unwrap` when T is non-list.
  */
-export function unwrapData<T>(response: { data: ApiResponse<T> }): T {
+export function unwrapData<T>(response: AxiosResponse<ApiResponse<T>>): T {
   return unwrap(response);
 }
 
