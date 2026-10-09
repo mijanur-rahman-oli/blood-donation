@@ -17,6 +17,30 @@ A production-quality frontend for a Blood Donation & Emergency Platform, connect
 
 ---
 
+## ⚠️ CRITICAL — WORKING DIRECTORY (READ FIRST)
+
+**The project root is the CURRENT WORKING DIRECTORY.** That directory contains:
+
+- `package.json`
+- `next.config.mjs`
+- `tailwind.config.ts`
+- `tsconfig.json`
+- `components.json`
+- `src/` (with `app/`, `components/`, `lib/`, `hooks/`, `store/`, `types/`)
+- `PROJECT.md` (this file)
+
+### Rules (MANDATORY — enforce on every write)
+
+1. **NEVER** create a folder named `blood-donation` inside the project.
+2. **NEVER** create a folder named `blood-donation-client` inside the project.
+3. **NEVER** prefix any file path with a project-name folder. The root is `.` — not `blood-donation/`, not `blood-donation-client/`.
+4. When asked to create `src/components/shared/Footer.tsx`, write to `./src/components/shared/Footer.tsx` — **NOT** to `./blood-donation/src/components/shared/Footer.tsx`.
+5. If a nested `blood-donation/` or `blood-donation-client/` folder already exists, **ignore it and use the outer files.** Do not touch the nested folder, do not move files into it, do not recreate it.
+6. All paths in this document are **relative to the current working directory** (the folder containing `package.json`).
+7. Every file output must include its full contents — no `// ...`, no truncation, no placeholders.
+
+---
+
 ## 🎯 Project Overview
 
 ### The Problem
@@ -61,8 +85,11 @@ A three-role platform that:
 
 ### Folder Structure
 
+> **Root = current working directory (the folder containing `package.json`).**  
+> All paths below are relative to that root. Do NOT create any `blood-donation/` or `blood-donation-client/` folder.
+
 ```
-blood-donation-client/
+.  (project root)
 ├── src/
 │   ├── app/
 │   │   ├── layout.tsx                     Root layout (Providers, Toaster, Navbar)
@@ -88,7 +115,10 @@ blood-donation-client/
 │   │   │   └── auth/
 │   │   │       ├── login/route.ts         Server proxy → sets httpOnly cookie
 │   │   │       ├── logout/route.ts
-│   │   │       └── refresh/route.ts
+│   │   │       ├── me/route.ts
+│   │   │       ├── refresh/route.ts
+│   │   │       ├── register/route.ts
+│   │   │       └── google/route.ts
 │   │   │
 │   │   ├── admin/
 │   │   │   ├── layout.tsx                 RoleGuard(ADMIN)
@@ -135,6 +165,7 @@ blood-donation-client/
 │   │       ├── SearchInput.tsx            Debounced, URL-synced
 │   │       ├── Pagination.tsx             URL-synced
 │   │       ├── EmptyState.tsx
+│   │       ├── FormField.tsx
 │   │       └── BloodCompatibilityChart.tsx
 │   │
 │   ├── lib/
@@ -144,6 +175,7 @@ blood-donation-client/
 │   │   ├── constants.ts
 │   │   ├── zod-schemas.ts
 │   │   └── api/
+│   │       ├── _errors.ts
 │   │       ├── auth.ts
 │   │       ├── users.ts
 │   │       ├── donors.ts
@@ -157,7 +189,8 @@ blood-donation-client/
 │   │   ├── useAuth.ts
 │   │   ├── useRole.ts
 │   │   ├── useDebounce.ts
-│   │   └── usePagination.ts
+│   │   ├── usePagination.ts
+│   │   └── useUpdateSearchParams.ts
 │   │
 │   ├── store/
 │   │   └── authStore.ts                   Zustand
@@ -169,6 +202,7 @@ blood-donation-client/
 │
 ├── public/
 ├── .env.local.example
+├── .env.local                             (gitignored)
 ├── components.json
 ├── next.config.mjs
 ├── tailwind.config.ts
@@ -311,8 +345,7 @@ type PaymentPurpose = 'EMERGENCY_VERIFICATION_FEE' | 'COORDINATION_FEE' | 'LOGIS
 
 ### Middleware Protection
 
-```typescript
-// src/middleware.ts
+```
 matcher: ['/admin/:path*', '/dashboard/:path*', '/donor/:path*']
 ```
 
@@ -435,8 +468,8 @@ matcher: ['/admin/:path*', '/dashboard/:path*', '/donor/:path*']
 ### Utility (2)
 | Route | Features |
 |-------|----------|
-| `app/not-found.tsx` | Custom 404 with illustration |
-| `app/error.tsx` | Global error boundary |
+| `src/app/not-found.tsx` | Custom 404 with illustration |
+| `src/app/error.tsx` | Global error boundary |
 
 **Total: 28 pages** ✅ (exceeds 18 minimum)
 
@@ -699,6 +732,7 @@ docs: add PROJECT.md and README with setup guide
 | Hydration mismatch | Ensure Navbar and auth-dependent UI render after `useEffect` or from cookie |
 | Cloudinary upload fails | Confirm unsigned preset is enabled + upload preset name correct |
 | Google Sign-In popup blocked | Add origin to Google Cloud Console authorized origins |
+| Tool creates nested `blood-donation/` folder | Re-read the "CRITICAL — WORKING DIRECTORY" section above |
 
 ---
 

@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 
 import { APP_NAME, APP_URL } from "@/lib/constants";
@@ -34,7 +32,9 @@ export interface FooterProps {
 }
 
 export function Footer({ className }: FooterProps) {
-  const year = new Date().getFullYear();
+  // Static year keeps the layout prerenderable in Next.js 16. Update
+  // annually (or swap in <CurrentYear /> when a live year is needed).
+  const year = 2025;
 
   return (
     <footer
