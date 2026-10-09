@@ -3,10 +3,12 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // Allow next/image to optimize remote assets served from Cloudinary and the
-  // backend API (avatars, request attachments, etc.).
+  // Allow next/image to optimize remote assets served from Cloudinary, the
+  // backend API (avatars, request attachments, etc.), Google avatars, and
+  // pravatar placeholders used by the demo accounts.
   images: {
     remotePatterns: [
+      { protocol: "https", hostname: "i.pravatar.cc", pathname: "/**" },
       {
         protocol: "https",
         hostname: "res.cloudinary.com",
