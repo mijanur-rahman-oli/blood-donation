@@ -3,9 +3,11 @@ import type {
   ApiResponse,
   BloodGroup,
   BloodRequest,
+  DonationHistory,
   DonorProfile,
   DonorSearchResult,
   PaginatedResult,
+  Priority,
 } from "@/types";
 
 import { unwrapData, unwrapList } from "./_errors";
@@ -33,6 +35,20 @@ export interface UpdateDonorProfileInput {
 
 export interface UpdateAvailabilityInput {
   availability: boolean;
+}
+
+export interface GetCompatibleRequestsParams {
+  page?: number;
+  limit?: number;
+  priority?: Priority;
+  bloodGroup?: BloodGroup;
+  sortBy?: "createdAt" | "priority";
+  sortOrder?: "asc" | "desc";
+}
+
+export interface GetDonationHistoryParams {
+  page?: number;
+  limit?: number;
 }
 
 export interface SearchDonorsParams {
@@ -80,7 +96,7 @@ export async function updateAvailability(
 }
 
 export async function getCompatibleRequests(
-  params: { page?: number; limit?: number } = {},
+  params: GetCompatibleRequestsParams = {},
 ): Promise<PaginatedResult<BloodRequest>> {
   const res = await api.get<ApiResponse<PaginatedResult<BloodRequest>>>(
     "/donors/requests",
@@ -90,9 +106,9 @@ export async function getCompatibleRequests(
 }
 
 export async function getDonationHistory(
-  params: { page?: number; limit?: number } = {},
-): Promise<PaginatedResult<BloodRequest>> {
-  const res = await api.get<ApiResponse<PaginatedResult<BloodRequest>>>(
+  params: GetDonationHistoryParams = {},
+): Promise<PaginatedResult<DonationHistory>> {
+  const res = await api.get<ApiResponse<PaginatedResult<DonationHistory>>>(
     "/donors/donation-history",
     { params },
   );

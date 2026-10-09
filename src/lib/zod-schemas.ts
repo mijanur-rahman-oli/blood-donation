@@ -119,7 +119,7 @@ export const donorProfileSchema = z.object({
     .max(120, "Location is too long"),
   weightKg: z
     .number({ invalid_type_error: "Enter a valid weight" })
-    .min(DONOR_MIN_WEIGHT_KG, `Minimum weight is ${DONOR_MIN_WEIGHT_KG} kg`)
+    .min(50, "Minimum 50 kg required to be eligible")
     .max(DONOR_MAX_WEIGHT_KG, `Maximum weight is ${DONOR_MAX_WEIGHT_KG} kg`),
   ageYears: z
     .number({ invalid_type_error: "Enter a valid age" })

@@ -80,3 +80,16 @@ export function toApiError(error: unknown, fallback = "Request failed"): ApiCall
   if (error instanceof Error) return new ApiCallError(error.message, 0, []);
   return new ApiCallError(fallback, 0, []);
 }
+
+/**
+ * Convenience: just the message string. Useful for inline `toast.error`
+ * call sites that don't want to know about `ApiCallError`. Returns the
+ * provided `fallback` if `error` is null/undefined.
+ */
+export function extractApiError(
+  error: unknown,
+  fallback = "Request failed",
+): string {
+  if (!error) return fallback;
+  return toApiError(error, fallback).message;
+}
