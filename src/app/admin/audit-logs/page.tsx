@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import {
   Badge,
@@ -14,6 +14,7 @@ import {
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Pagination } from "@/components/shared/Pagination";
+import { PaginationMeta } from "@/components/shared/PaginationMeta";
 import { ChevronRightIcon } from "@/components/admin/icons";
 import * as adminApi from "@/lib/api/admin";
 import { useUpdateSearchParams } from "@/hooks/useUpdateSearchParams";
@@ -49,7 +50,13 @@ const ACTION_OPTIONS = [
   "PAYMENT_COMPLETED",
 ];
 
-const ENTITY_OPTIONS = ["User", "BloodRequest", "Assignment", "Donation", "Payment"];
+const ENTITY_OPTIONS = [
+  "User",
+  "BloodRequest",
+  "Assignment",
+  "Donation",
+  "Payment",
+];
 
 export default function AdminAuditLogsPage() {
   const { searchParams, update, remove } = useUpdateSearchParams();
@@ -74,7 +81,7 @@ export default function AdminAuditLogsPage() {
         action: filters.action,
         entityType: filters.entityType,
       }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
@@ -181,6 +188,8 @@ export default function AdminAuditLogsPage() {
   );
 
   const hasFilters = Boolean(filters.action) || Boolean(filters.entityType);
+  const logs = query.data?.result ?? [];
+  const meta = query.data?.meta;
 
   return (
     <div className="space-y-6">
@@ -213,7 +222,8 @@ export default function AdminAuditLogsPage() {
             value={filters.entityType ?? "ALL"}
             onChange={(event) =>
               update({
-                entityType: event.target.value === "ALL" ? null : event.target.value,
+                entityType:
+                  event.target.value === "ALL" ? null : event.target.value,
                 page: 1,
               })
             }
@@ -246,7 +256,7 @@ export default function AdminAuditLogsPage() {
           description={query.error?.message ?? "Please try again."}
           action={<Button onClick={() => query.refetch()}>Retry</Button>}
         />
-      ) : query.isLoading ? (
+      ) : query.isLoading && !query.data ? (
         <Card>
           <CardContent className="space-y-3 p-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -260,9 +270,10 @@ export default function AdminAuditLogsPage() {
         </Card>
       ) : (
         <>
+          <PaginationMeta meta={meta} resource="audit entries" />
           <DataTable
             columns={columns}
-            data={query.data?.result ?? []}
+            data={logs}
             isLoading={false}
             rowKey={(row) => row.id}
             emptyState={
@@ -273,10 +284,9 @@ export default function AdminAuditLogsPage() {
               />
             }
           />
-          <Pagination
-            total={query.data?.meta.total ?? 0}
-            totalPages={query.data?.meta.totalPages ?? 1}
-          />
+          {meta && meta.total > 0 ? (
+            <Pagination total={meta.total} totalPages={meta.totalPages} />
+          ) : null}
         </>
       )}
     </div>

@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Tiny shadcn-style primitives.
  *

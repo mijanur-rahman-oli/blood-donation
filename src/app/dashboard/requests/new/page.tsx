@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type { UseFormRegisterReturn } from "react-hook-form";
 
 import {
-  Badge,
   Button,
   Card,
   CardContent,
-  Input,
   Label,
   RadioGroup,
   Select,
@@ -24,28 +24,34 @@ import {
   PRIORITY_LABELS,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { bloodRequestWizardSchema } from "@/lib/zod-schemas";
-import { ArrowLeftIcon, CheckIcon, PlusCircleIcon } from "@/components/dashboard/icons";
+import { bloodRequestWizardSchema, type BloodRequestWizardInput } from "@/lib/zod-schemas";
+import { ArrowLeftIcon, CheckIcon } from "@/components/dashboard/icons";
 import { toast } from "@/app/providers";
 
 /* ----------------------------------------------------------------------
    /dashboard/requests/new — 3-step wizard
    ----------------------------------------------------------------------
-   State machine: 1 (Patient) → 2 (Hospital) → 3 (Contact) → submit.
-   On each Next click we run a per-step Zod validation (extracted from
-   the combined `bloodRequestWizardSchema`) and only advance if the
-   current step is valid. Submit runs the full schema, posts to
-   `bloodRequestsApi.create`, and routes to the detail page.
-
-   Field naming: the spec asked for `unitsNeeded` in step 1 but the
-   backend / blood-requests contract uses `units`. The form keeps the
-   API field name internally (so the create payload matches the
-   schema) and labels the input "Units needed" in the UI.
+   RHF + Zod. State machine: 1 (Patient) → 2 (Hospital) → 3 (Contact) →
+   submit. Each Next click validates only that step's fields; Submit
+   runs the full schema.
    ---------------------------------------------------------------------- */
 
-type WizardValues = z.infer<typeof bloodRequestWizardSchema>;
+const STEP_LABELS = ["Patient", "Hospital", "Contact"] as const;
 
-const EMPTY: WizardValues = {
+const STEP_FIELDS: ReadonlyArray<ReadonlyArray<keyof BloodRequestWizardInput>> = [
+  ["patientName", "bloodGroup", "units"],
+  ["hospitalName", "location", "neededAt", "priority"],
+  ["contactName", "contactPhone", "notes"],
+];
+
+const PRIORITY_DOT: Record<BloodRequestWizardInput["priority"], string> = {
+  LOW: "bg-slate-400",
+  MEDIUM: "bg-info",
+  HIGH: "bg-warning",
+  CRITICAL: "bg-destructive",
+};
+
+const DEFAULT_VALUES: BloodRequestWizardInput = {
   patientName: "",
   bloodGroup: "O_POSITIVE",
   units: 1,
@@ -58,97 +64,43 @@ const EMPTY: WizardValues = {
   notes: "",
 };
 
-const STEP_FIELDS: ReadonlyArray<ReadonlyArray<keyof WizardValues>> = [
-  ["patientName", "bloodGroup", "units"],
-  ["hospitalName", "location", "priority"],
-  ["contactName", "contactPhone", "notes"],
-];
-
-const STEP_LABELS = ["Patient", "Hospital", "Contact"] as const;
-
-const PRIORITY_DOT: Record<WizardValues["priority"], string> = {
-  LOW: "bg-slate-400",
-  MEDIUM: "bg-info",
-  HIGH: "bg-warning",
-  CRITICAL: "bg-destructive",
-};
-
 export default function NewRequestWizardPage() {
   const router = useRouter();
-  const [values, setValues] = useState<WizardValues>(EMPTY);
-  const [errors, setErrors] = useState<Partial<Record<keyof WizardValues, string>>>({});
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [submitting, setSubmitting] = useState(false);
 
-  function update<K extends keyof WizardValues>(key: K, value: WizardValues[K]) {
-    setValues((prev) => ({ ...prev, [key]: value }));
-    if (errors[key]) {
-      setErrors((prev) => {
-        const { [key]: _removed, ...rest } = prev;
-        return rest;
-      });
-    }
-  }
-
-  function validateStep(index: 0 | 1 | 2): Partial<Record<keyof WizardValues, string>> {
-    const shape = bloodRequestWizardSchema.pick(
-      Object.fromEntries(STEP_FIELDS[index]!.map((k) => [k, true])) as Record<
-        (typeof STEP_FIELDS)[number][number],
-        true
-      >,
-    );
-    const result = shape.safeParse(values);
-    if (result.success) return {};
-    const fieldErrors: Partial<Record<keyof WizardValues, string>> = {};
-    for (const issue of result.error.issues) {
-      const key = issue.path[0];
-      if (typeof key === "string" && !fieldErrors[key as keyof WizardValues]) {
-        fieldErrors[key as keyof WizardValues] = issue.message;
-      }
-    }
-    return fieldErrors;
-  }
+  const form = useForm<BloodRequestWizardInput>({
+    resolver: zodResolver(bloodRequestWizardSchema),
+    mode: "onChange",
+    defaultValues: DEFAULT_VALUES,
+  });
 
   async function handleNext() {
-    const stepErrors = validateStep(step);
-    if (Object.keys(stepErrors).length > 0) {
-      setErrors((prev) => ({ ...prev, ...stepErrors }));
-      return;
+    const fields = STEP_FIELDS[step]!;
+    const result = await form.trigger(fields);
+    if (result) {
+      setStep((prev) => (Math.min(prev + 1, 2) as 0 | 1 | 2));
     }
-    setStep((prev) => (Math.min(prev + 1, 2) as 0 | 1 | 2));
   }
 
   function handleBack() {
     setStep((prev) => (Math.max(prev - 1, 0) as 0 | 1 | 2));
   }
 
-  async function handleSubmit() {
-    const result = bloodRequestWizardSchema.safeParse(values);
-    if (!result.success) {
-      const fieldErrors: Partial<Record<keyof WizardValues, string>> = {};
-      for (const issue of result.error.issues) {
-        const key = issue.path[0];
-        if (typeof key === "string" && !fieldErrors[key as keyof WizardValues]) {
-          fieldErrors[key as keyof WizardValues] = issue.message;
-        }
-      }
-      setErrors(fieldErrors);
-      return;
-    }
-
+  async function onSubmit(values: BloodRequestWizardInput) {
     setSubmitting(true);
     try {
       const created = await bloodRequestsApi.create({
-        patientName: result.data.patientName,
-        bloodGroup: result.data.bloodGroup,
-        units: result.data.units,
-        priority: result.data.priority,
-        hospitalName: result.data.hospitalName,
-        location: result.data.location,
-        neededAt: result.data.neededAt,
-        contactName: result.data.contactName,
-        contactPhone: result.data.contactPhone,
-        notes: result.data.notes || undefined,
+        patientName: values.patientName,
+        bloodGroup: values.bloodGroup,
+        units: values.units,
+        priority: values.priority,
+        hospitalName: values.hospitalName,
+        location: values.location,
+        neededAt: values.neededAt,
+        contactName: values.contactName,
+        contactPhone: values.contactPhone,
+        notes: values.notes || undefined,
       });
       toast.success(
         "Blood request created",
@@ -177,33 +129,39 @@ export default function NewRequestWizardPage() {
 
       <Card>
         <CardContent className="space-y-4 p-6">
-          {step === 0 ? <Step1 values={values} errors={errors} update={update} /> : null}
-          {step === 1 ? <Step2 values={values} errors={errors} update={update} /> : null}
-          {step === 2 ? (
-            <Step3 values={values} errors={errors} update={update} />
-          ) : null}
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4"
+            noValidate
+          >
+            {step === 0 ? <Step1 form={form} /> : null}
+            {step === 1 ? <Step2 form={form} /> : null}
+            {step === 2 ? <Step3 form={form} /> : null}
 
-          <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <Button
-              variant="outline"
-              onClick={handleBack}
-              disabled={step === 0 || submitting}
-            >
-              <ArrowLeftIcon size={14} /> Back
-            </Button>
-            {step < 2 ? (
-              <Button onClick={handleNext} disabled={submitting}>
-                Continue
-              </Button>
-            ) : (
+            <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
               <Button
-                onClick={handleSubmit}
-                disabled={submitting}
+                type="button"
+                variant="outline"
+                onClick={handleBack}
+                disabled={step === 0 || submitting}
               >
-                {submitting ? "Submitting…" : "Submit Request"}
+                <ArrowLeftIcon size={14} /> Back
               </Button>
-            )}
-          </div>
+              {step < 2 ? (
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={submitting}
+                >
+                  Continue
+                </Button>
+              ) : (
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? "Submitting…" : "Submit Request"}
+                </Button>
+              )}
+            </div>
+          </form>
         </CardContent>
       </Card>
     </div>
@@ -262,47 +220,47 @@ function ProgressIndicator({ currentStep }: { currentStep: number }) {
 /* ----------------------------------------------------------------------
    Steps
    ---------------------------------------------------------------------- */
-type Updater = <K extends keyof WizardValues>(
-  key: K,
-  value: WizardValues[K],
-) => void;
+type Form = ReturnType<typeof useForm<BloodRequestWizardInput>>;
 
-function Step1({
-  values,
-  errors,
-  update,
-}: {
-  values: WizardValues;
-  errors: Partial<Record<keyof WizardValues, string>>;
-  update: Updater;
-}) {
+function Step1({ form }: { form: Form }) {
   return (
     <div className="space-y-4">
       <Field
         label="Patient name"
-        value={values.patientName}
-        onChange={(v) => update("patientName", v)}
-        error={errors.patientName}
+        registration={form.register("patientName")}
+        error={form.formState.errors.patientName?.message}
         placeholder="e.g. Ayesha Begum"
         required
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <SelectField
+        <Field
           label="Blood group"
-          value={values.bloodGroup}
-          onChange={(v) => update("bloodGroup", v as WizardValues["bloodGroup"])}
-          error={errors.bloodGroup}
-          options={BLOOD_GROUPS.map((g) => ({ value: g, label: BLOOD_GROUP_LABELS[g] }))}
+          error={form.formState.errors.bloodGroup?.message}
+          name="bloodGroup"
           required
-        />
+        >
+          <Select
+            value={form.watch("bloodGroup")}
+            onChange={(event) =>
+              form.setValue(
+                "bloodGroup",
+                event.target.value as BloodRequestWizardInput["bloodGroup"],
+                { shouldValidate: true, shouldDirty: true },
+              )
+            }
+            options={BLOOD_GROUPS.map((g) => ({
+              value: g,
+              label: BLOOD_GROUP_LABELS[g],
+            }))}
+          />
+        </Field>
         <Field
           label="Units needed"
+          registration={form.register("units", { valueAsNumber: true })}
+          error={form.formState.errors.units?.message}
           type="number"
           min={1}
           max={10}
-          value={String(values.units)}
-          onChange={(v) => update("units", Number(v) || 0)}
-          error={errors.units}
           required
         />
       </div>
@@ -310,40 +268,29 @@ function Step1({
   );
 }
 
-function Step2({
-  values,
-  errors,
-  update,
-}: {
-  values: WizardValues;
-  errors: Partial<Record<keyof WizardValues, string>>;
-  update: Updater;
-}) {
+function Step2({ form }: { form: Form }) {
   return (
     <div className="space-y-4">
       <Field
         label="Hospital name"
-        value={values.hospitalName}
-        onChange={(v) => update("hospitalName", v)}
-        error={errors.hospitalName}
+        registration={form.register("hospitalName")}
+        error={form.formState.errors.hospitalName?.message}
         placeholder="e.g. Square Hospital, Dhaka"
         required
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
           label="Location"
-          value={values.location}
-          onChange={(v) => update("location", v)}
-          error={errors.location}
+          registration={form.register("location")}
+          error={form.formState.errors.location?.message}
           placeholder="City or district"
           required
         />
         <Field
           label="Needed by"
+          registration={form.register("neededAt")}
+          error={form.formState.errors.neededAt?.message}
           type="datetime-local"
-          value={values.neededAt}
-          onChange={(v) => update("neededAt", v)}
-          error={errors.neededAt}
           required
         />
       </div>
@@ -351,8 +298,14 @@ function Step2({
       <div className="space-y-2">
         <Label>Priority</Label>
         <RadioGroup
-          value={values.priority}
-          onValueChange={(v) => update("priority", v as WizardValues["priority"])}
+          value={form.watch("priority")}
+          onValueChange={(v) =>
+            form.setValue(
+              "priority",
+              v as BloodRequestWizardInput["priority"],
+              { shouldValidate: true, shouldDirty: true },
+            )
+          }
           options={PRIORITIES.map((p) => ({
             value: p,
             label: PRIORITY_LABELS[p],
@@ -374,9 +327,9 @@ function Step2({
             </span>
           ))}
         </div>
-        {errors.priority ? (
+        {form.formState.errors.priority ? (
           <p role="alert" className="text-xs font-medium text-destructive">
-            {errors.priority}
+            {form.formState.errors.priority.message}
           </p>
         ) : null}
       </div>
@@ -384,39 +337,29 @@ function Step2({
   );
 }
 
-function Step3({
-  values,
-  errors,
-  update,
-}: {
-  values: WizardValues;
-  errors: Partial<Record<keyof WizardValues, string>>;
-  update: Updater;
-}) {
+function Step3({ form }: { form: Form }) {
+  const values = form.watch();
   return (
     <div className="space-y-4">
       <Field
         label="Contact name"
-        value={values.contactName}
-        onChange={(v) => update("contactName", v)}
-        error={errors.contactName}
+        registration={form.register("contactName")}
+        error={form.formState.errors.contactName?.message}
         placeholder="Family member or coordinator"
         required
       />
       <Field
         label="Contact phone"
+        registration={form.register("contactPhone")}
+        error={form.formState.errors.contactPhone?.message}
         type="tel"
-        value={values.contactPhone}
-        onChange={(v) => update("contactPhone", v)}
-        error={errors.contactPhone}
         placeholder="01712-345678"
         required
       />
       <TextareaField
         label="Notes (optional)"
-        value={values.notes ?? ""}
-        onChange={(v) => update("notes", v)}
-        error={errors.notes}
+        registration={form.register("notes")}
+        error={form.formState.errors.notes?.message}
         placeholder="Anything the admin should know…"
         rows={4}
       />
@@ -460,113 +403,100 @@ function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) 
 }
 
 /* ----------------------------------------------------------------------
-   Field / TextareaField / SelectField
+   Field / TextareaField
    ---------------------------------------------------------------------- */
-function Field({
-  label,
-  value,
-  onChange,
-  error,
-  required,
-  type = "text",
-  placeholder,
-  min,
-  max,
-}: {
+interface FieldProps {
   label: string;
-  value: string;
-  onChange: (value: string) => void;
+  registration?: UseFormRegisterReturn;
   error?: string;
   required?: boolean;
   type?: string;
   placeholder?: string;
   min?: number;
   max?: number;
-}) {
-  const id = `wizard-${label.replace(/\s+/g, "-").toLowerCase()}`;
+  children?: React.ReactNode;
+  /** Required when `children` is omitted so the input id is stable. */
+  name?: string;
+}
+
+function Field({
+  label,
+  registration,
+  error,
+  required,
+  type = "text",
+  placeholder,
+  min,
+  max,
+  children,
+  name,
+}: FieldProps) {
+  const id = `wizard-${registration?.name ?? name ?? "field"}`;
+  const errorId = error ? `${id}-error` : undefined;
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>
         {label}
         {required ? <span aria-hidden className="ml-0.5 text-destructive">*</span> : null}
       </Label>
-      <Input
-        id={id}
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        min={min}
-        max={max}
-        onChange={(event) => onChange(event.target.value)}
-        aria-invalid={Boolean(error)}
-        className={cn(error && "border-destructive focus:ring-destructive")}
-      />
+      {children ? (
+        children
+      ) : (
+        <input
+          id={id}
+          type={type}
+          placeholder={placeholder}
+          min={min}
+          max={max}
+          aria-invalid={Boolean(error)}
+          aria-describedby={errorId}
+          className={cn(
+            "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
+            error && "border-destructive focus:ring-destructive",
+          )}
+          {...registration}
+        />
+      )}
       {error ? <ErrorLine message={error} /> : null}
     </div>
   );
+}
+
+interface TextareaFieldProps {
+  label: string;
+  registration: UseFormRegisterReturn;
+  error?: string;
+  required?: boolean;
+  placeholder?: string;
+  rows?: number;
 }
 
 function TextareaField({
   label,
-  value,
-  onChange,
+  registration,
   error,
+  required,
   placeholder,
   rows = 4,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  placeholder?: string;
-  rows?: number;
-}) {
-  const id = `wizard-${label.replace(/\s+/g, "-").toLowerCase()}`;
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
-      <Textarea
-        id={id}
-        rows={rows}
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        aria-invalid={Boolean(error)}
-        className={cn(error && "border-destructive focus:ring-destructive")}
-      />
-      {error ? <ErrorLine message={error} /> : null}
-    </div>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  error,
-  options,
-  required,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  options: Array<{ value: string; label: string }>;
-  required?: boolean;
-}) {
-  const id = `wizard-${label.replace(/\s+/g, "-").toLowerCase()}`;
+}: TextareaFieldProps) {
+  const id = `wizard-${registration.name}`;
+  const errorId = error ? `${id}-error` : undefined;
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>
         {label}
         {required ? <span aria-hidden className="ml-0.5 text-destructive">*</span> : null}
       </Label>
-      <Select
+      <Textarea
         id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        options={options}
+        rows={rows}
+        placeholder={placeholder}
         aria-invalid={Boolean(error)}
+        aria-describedby={errorId}
+        className={cn(
+          error && "border-destructive focus:ring-destructive",
+        )}
+        {...registration}
       />
       {error ? <ErrorLine message={error} /> : null}
     </div>

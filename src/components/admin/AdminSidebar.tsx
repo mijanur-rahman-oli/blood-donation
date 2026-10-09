@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import type { ReactNode } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useUpdateSearchParams } from "@/hooks/useUpdateSearchParams";
@@ -40,7 +41,14 @@ import {
    (derived from the pathname), and a user dropdown.
    ---------------------------------------------------------------------- */
 
-const NAV_ITEMS = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: (props: { size?: number }) => ReactNode;
+  exact?: boolean;
+}
+
+const NAV_ITEMS: readonly NavItem[] = [
   {
     href: "/admin",
     label: "Dashboard",
@@ -62,7 +70,7 @@ const NAV_ITEMS = [
     label: "Audit Logs",
     icon: ScrollTextIcon,
   },
-] as const;
+];
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -122,8 +130,7 @@ export function AdminSidebar() {
         </aside>
       </div>
 
-      {/* Mobile menu trigger (rendered outside the layout, positioned
-          absolutely so it can sit in the topbar on small screens). */}
+      {/* Mobile menu trigger */}
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
@@ -155,14 +162,11 @@ export function AdminTopbar() {
     }
   }
 
-  // Surface a "Results updated" hint when ?refreshed=1 lands in the URL
-  // (used by mutations across the admin pages to give post-redirect feedback).
   const refreshed = searchParams.get("refreshed");
 
   return (
     <div className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-background/80 px-4 backdrop-blur md:px-6">
       <div className="flex items-center gap-3">
-        {/* Mobile menu trigger — rendered by the sidebar mount above */}
         <h1 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
           {title}
         </h1>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import type { ReactNode } from "react";
 
 import {
   DropdownMenu,
@@ -30,18 +31,21 @@ import {
 
 /* ----------------------------------------------------------------------
    RequesterSidebar + RequesterTopbar
-   ----------------------------------------------------------------------
-   Same shape as the admin sidebar. The sidebar renders the four
-   requester-area links; the topbar shows the page title (derived from
-   `usePathname`) and a user dropdown.
    ---------------------------------------------------------------------- */
 
-const NAV_ITEMS = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: (props: { size?: number }) => ReactNode;
+  exact?: boolean;
+}
+
+const NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboardIcon, exact: true },
   { href: "/dashboard/requests/new", label: "New Request", icon: PlusCircleIcon },
   { href: "/dashboard/payments", label: "Payments", icon: CreditCardIcon },
   { href: "/dashboard/profile", label: "Profile", icon: UserIcon },
-] as const;
+];
 
 export function RequesterSidebar() {
   const pathname = usePathname();

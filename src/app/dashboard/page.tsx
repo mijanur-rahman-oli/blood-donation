@@ -239,7 +239,7 @@ export default function DashboardOverviewPage() {
           )}
           {requests.length > 0 ? (
             <p className="mt-3 text-xs text-muted-foreground">
-              Last updated {formatRelativeTime(query.dataUpdatedAt)}
+              Last updated {formatRelativeTime(new Date(query.dataUpdatedAt).toISOString())}
             </p>
           ) : null}
         </CardContent>

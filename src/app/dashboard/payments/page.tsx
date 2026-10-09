@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import {
   Badge,
@@ -19,6 +19,7 @@ import {
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Pagination } from "@/components/shared/Pagination";
+import { PaginationMeta } from "@/components/shared/PaginationMeta";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import {
   CopyIcon,
@@ -26,7 +27,7 @@ import {
   EyeIcon,
 } from "@/components/dashboard/icons";
 import * as paymentsApi from "@/lib/api/payments";
-import { PAYMENT_PURPOSE_LABELS } from "@/lib/constants";
+import { PAYMENT_PURPOSE_LABELS, type PaymentPurpose } from "@/lib/constants";
 import { useUpdateSearchParams } from "@/hooks/useUpdateSearchParams";
 import {
   formatCurrency,
@@ -38,10 +39,6 @@ import type { PaginatedResult, Payment } from "@/types";
 
 /* ----------------------------------------------------------------------
    /dashboard/payments — Payment history
-   ----------------------------------------------------------------------
-   URL-synced ?page and ?limit. The action column opens a Dialog with
-   the full payment record. The Payment ID is click-to-copy with a
-   short-lived "Copied" toast confirmation.
    ---------------------------------------------------------------------- */
 
 export default function PaymentsPage() {
@@ -53,7 +50,7 @@ export default function PaymentsPage() {
   const query = useQuery<PaginatedResult<Payment>, Error>({
     queryKey: ["payments", { page, limit }],
     queryFn: () => paymentsApi.list({ page, limit }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
@@ -84,7 +81,12 @@ export default function PaymentsPage() {
             if (typeof navigator !== "undefined" && navigator.clipboard) {
               void navigator.clipboard
                 .writeText(row.id)
-                .then(() => toast.success("Copied", "Payment ID copied to clipboard."));
+                .then(() =>
+                  toast.success(
+                    "Copied",
+                    "Payment ID copied to clipboard.",
+                  ),
+                );
             }
           }}
           className="inline-flex items-center gap-1 rounded-sm font-mono text-xs text-muted-foreground hover:text-foreground"
@@ -99,7 +101,9 @@ export default function PaymentsPage() {
       accessor: "purpose",
       header: "Purpose",
       cell: (row) => (
-        <Badge variant="default">{PAYMENT_PURPOSE_LABELS[row.purpose]}</Badge>
+        <Badge variant="default">
+          {PAYMENT_PURPOSE_LABELS[row.purpose as PaymentPurpose]}
+        </Badge>
       ),
     },
     {
@@ -133,6 +137,9 @@ export default function PaymentsPage() {
     },
   ];
 
+  const payments = query.data?.result ?? [];
+  const meta = query.data?.meta;
+
   return (
     <div className="space-y-6">
       <header>
@@ -150,7 +157,7 @@ export default function PaymentsPage() {
           description={query.error?.message ?? "Please try again."}
           action={<Button onClick={() => query.refetch()}>Retry</Button>}
         />
-      ) : query.isLoading ? (
+      ) : query.isLoading && !query.data ? (
         <Card>
           <CardContent className="space-y-3 p-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -162,7 +169,7 @@ export default function PaymentsPage() {
             ))}
           </CardContent>
         </Card>
-      ) : (query.data?.result ?? []).length === 0 ? (
+      ) : payments.length === 0 ? (
         <EmptyState
           icon={<CreditCardIcon size={22} />}
           title="No payments yet"
@@ -178,9 +185,10 @@ export default function PaymentsPage() {
         />
       ) : (
         <>
+          <PaginationMeta meta={meta} resource="payments" />
           <DataTable
             columns={columns}
-            data={query.data?.result ?? []}
+            data={payments}
             isLoading={false}
             rowKey={(row) => row.id}
             emptyState={
@@ -191,14 +199,16 @@ export default function PaymentsPage() {
               />
             }
           />
-          <Pagination
-            total={query.data?.meta.total ?? 0}
-            totalPages={query.data?.meta.totalPages ?? 1}
-          />
+          {meta && meta.total > 0 ? (
+            <Pagination total={meta.total} totalPages={meta.totalPages} />
+          ) : null}
         </>
       )}
 
-      <Dialog open={Boolean(openId)} onOpenChange={(o) => !o && setOpenId(null)}>
+      <Dialog
+        open={Boolean(openId)}
+        onOpenChange={(o) => !o && setOpenId(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Payment details</DialogTitle>
@@ -210,18 +220,26 @@ export default function PaymentsPage() {
           </DialogHeader>
           {opened ? (
             <div className="grid grid-cols-1 gap-3 p-5 text-sm sm:grid-cols-2">
-              <DetailRow label="Date" value={formatDateTime(opened.createdAt)} />
+              <DetailRow
+                label="Date"
+                value={formatDateTime(opened.createdAt)}
+              />
               <DetailRow
                 label="Status"
                 value={<StatusBadge status={opened.status} />}
               />
               <DetailRow
                 label="Purpose"
-                value={PAYMENT_PURPOSE_LABELS[opened.purpose]}
+                value={
+                  PAYMENT_PURPOSE_LABELS[opened.purpose as PaymentPurpose]
+                }
               />
               <DetailRow
                 label="Amount"
-                value={formatCurrency(opened.amount, opened.currency || "BDT")}
+                value={formatCurrency(
+                  opened.amount,
+                  opened.currency || "BDT",
+                )}
               />
               <DetailRow
                 label="Transaction ID"
@@ -248,7 +266,13 @@ export default function PaymentsPage() {
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+function DetailRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

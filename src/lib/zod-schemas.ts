@@ -130,6 +130,10 @@ export const donorProfileSchema = z.object({
 });
 export type DonorProfileInput = z.infer<typeof donorProfileSchema>;
 
+/** Same shape without `availability` — availability has its own mutation. */
+export const donorProfileFormSchema = donorProfileSchema.omit({ availability: true });
+export type DonorProfileFormInput = z.infer<typeof donorProfileFormSchema>;
+
 export const donorAvailabilitySchema = z.object({
   availability: z.boolean(),
 });

@@ -3,7 +3,8 @@ import { Inter } from "next/font/google";
 
 import { Footer } from "@/components/shared/Footer";
 import { Navbar } from "@/components/shared/Navbar";
-import { APP_DESCRIPTION, APP_NAME, APP_URL } from "@/lib/constants";
+import { BackToTop } from "@/components/shared/BackToTop";
+import { APP_DESCRIPTION, APP_NAME } from "@/lib/constants";
 
 import "./globals.css";
 import { Providers } from "./providers";
@@ -27,7 +28,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(APP_URL),
+  metadataBase: new URL("https://blood-donation.example.com"),
   title: {
     default: "Blood Donation & Emergency Platform",
     template: "%s | Blood Donation Platform",
@@ -50,7 +51,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: APP_URL,
+    url: "/",
     siteName: APP_NAME,
     title: "Blood Donation & Emergency Platform",
     description: APP_DESCRIPTION,
@@ -75,7 +76,7 @@ export const metadata: Metadata = {
     googleBot: { index: true, follow: true },
   },
   alternates: {
-    canonical: APP_URL,
+    canonical: "/",
   },
   icons: {
     icon: "/favicon.ico",
@@ -104,6 +105,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
           <Navbar />
           <main className="min-h-screen flex-1">{children}</main>
           <Footer />
+          <BackToTop />
         </Providers>
       </body>
     </html>

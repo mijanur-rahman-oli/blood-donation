@@ -1,12 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Badge, Button, Card, CardContent, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label, RadioGroup, Select } from "@/components/admin/primitives";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Label,
+  RadioGroup,
+  Select,
+} from "@/components/admin/primitives";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Pagination } from "@/components/shared/Pagination";
+import { PaginationMeta } from "@/components/shared/PaginationMeta";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { MoreHorizontalIcon } from "@/components/admin/icons";
@@ -28,9 +43,10 @@ import type { PaginatedResult, Role, User, UserStatus } from "@/types";
    /admin/users — User management
    ----------------------------------------------------------------------
    URL-synced filters: ?page&limit&role&status&q. TanStack Query with
-   `keepPreviousData` so navigating between pages does not flash a
-   loading skeleton. Mutations for role and status change invalidate
-   the `["admin", "users", filters]` key on success.
+   `placeholderData: keepPreviousData` so navigating between pages
+   does not flash a loading skeleton. Mutations for role and status
+   change invalidate the `["admin", "users", filters]` key on success
+   and show optimistic toasts.
    ---------------------------------------------------------------------- */
 
 interface UsersFilters {
@@ -78,7 +94,7 @@ export default function AdminUsersPage() {
         status: filters.status,
         q: filters.q,
       }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
@@ -87,11 +103,32 @@ export default function AdminUsersPage() {
   const roleMutation = useMutation({
     mutationFn: (input: { id: string; role: Role }) =>
       adminApi.updateUserRole(input.id, { role: input.role }),
+    onMutate: async ({ id, role }) => {
+      await queryClient.cancelQueries({ queryKey: ["admin", "users", filters] });
+      const previous = queryClient.getQueryData<PaginatedResult<User> | undefined>([
+        "admin",
+        "users",
+        filters,
+      ]);
+      if (previous) {
+        queryClient.setQueryData<PaginatedResult<User>>(
+          ["admin", "users", filters],
+          {
+            ...previous,
+            result: previous.result.map((u) => (u.id === id ? { ...u, role } : u)),
+          },
+        );
+      }
+      return { previous };
+    },
     onSuccess: () => {
       toast.success("Role updated", "The user's role has been changed.");
       void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["admin", "users", filters], context.previous);
+      }
       toast.error("Failed to update role", extractApiError(error));
     },
   });
@@ -99,6 +136,26 @@ export default function AdminUsersPage() {
   const statusMutation = useMutation({
     mutationFn: (input: { id: string; status: UserStatus }) =>
       adminApi.updateUserStatus(input.id, { status: input.status }),
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["admin", "users", filters] });
+      const previous = queryClient.getQueryData<PaginatedResult<User> | undefined>([
+        "admin",
+        "users",
+        filters,
+      ]);
+      if (previous) {
+        queryClient.setQueryData<PaginatedResult<User>>(
+          ["admin", "users", filters],
+          {
+            ...previous,
+            result: previous.result.map((u) =>
+              u.id === id ? { ...u, status } : u,
+            ),
+          },
+        );
+      }
+      return { previous };
+    },
     onSuccess: (user) => {
       toast.success(
         user.status === "BLOCKED" ? "User blocked" : "User unblocked",
@@ -106,7 +163,10 @@ export default function AdminUsersPage() {
       );
       void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["admin", "users", filters], context.previous);
+      }
       toast.error("Failed to update status", extractApiError(error));
     },
   });
@@ -163,9 +223,15 @@ export default function AdminUsersPage() {
           <RowActions
             user={row}
             onChangeRole={(role) => roleMutation.mutate({ id: row.id, role })}
-            onChangeStatus={(status) => statusMutation.mutate({ id: row.id, status })}
-            rolePending={roleMutation.isPending && roleMutation.variables?.id === row.id}
-            statusPending={statusMutation.isPending && statusMutation.variables?.id === row.id}
+            onChangeStatus={(status) =>
+              statusMutation.mutate({ id: row.id, status })
+            }
+            rolePending={
+              roleMutation.isPending && roleMutation.variables?.id === row.id
+            }
+            statusPending={
+              statusMutation.isPending && statusMutation.variables?.id === row.id
+            }
           />
         ),
       },
@@ -175,6 +241,8 @@ export default function AdminUsersPage() {
 
   const hasFilters =
     Boolean(filters.role) || Boolean(filters.status) || Boolean(filters.q);
+  const users = query.data?.result ?? [];
+  const meta = query.data?.meta;
 
   return (
     <div className="space-y-6">
@@ -214,14 +282,14 @@ export default function AdminUsersPage() {
             {hasFilters ? (
               <Button
                 variant="outline"
-                onClick={() =>
-                  remove(["q", "role", "status", "page", "limit"])
-                }
+                onClick={() => remove(["q", "role", "status", "page", "limit"])}
               >
                 Clear filters
               </Button>
             ) : (
-              <span className="text-xs text-muted-foreground">No filters applied</span>
+              <span className="text-xs text-muted-foreground">
+                No filters applied
+              </span>
             )}
           </div>
         </CardContent>
@@ -237,10 +305,11 @@ export default function AdminUsersPage() {
         />
       ) : (
         <>
+          <PaginationMeta meta={meta} resource="users" />
           <DataTable
             columns={columns}
-            data={query.data?.result ?? []}
-            isLoading={query.isLoading}
+            data={users}
+            isLoading={query.isLoading && !query.data}
             rowKey={(row) => row.id}
             emptyState={
               <EmptyState
@@ -254,10 +323,12 @@ export default function AdminUsersPage() {
               />
             }
           />
-          <Pagination
-            total={query.data?.meta.total ?? 0}
-            totalPages={query.data?.meta.totalPages ?? 1}
-          />
+          {meta && meta.total > 0 ? (
+            <Pagination
+              total={meta.total}
+              totalPages={meta.totalPages}
+            />
+          ) : null}
         </>
       )}
     </div>
@@ -287,7 +358,10 @@ function RowActions({
   const [roleValue, setRoleValue] = useState<Role>(user.role);
 
   return (
-    <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
+    <div
+      className="flex justify-end"
+      onClick={(event) => event.stopPropagation()}
+    >
       <DropdownMenu>
         <DropdownMenuTrigger
           className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
@@ -296,7 +370,12 @@ function RowActions({
           <MoreHorizontalIcon size={16} />
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuItem onClick={() => { setRoleValue(user.role); setRoleOpen(true); }}>
+          <DropdownMenuItem
+            onClick={() => {
+              setRoleValue(user.role);
+              setRoleOpen(true);
+            }}
+          >
             Change role
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -314,8 +393,8 @@ function RowActions({
           <DialogHeader>
             <DialogTitle>Change role for {user.name}</DialogTitle>
             <DialogDescription>
-              Pick the new role. The change takes effect on the user's next
-              page load.
+              Pick the new role. The change takes effect on the user&apos;s
+              next page load.
             </DialogDescription>
           </DialogHeader>
           <div className="p-5">
@@ -372,7 +451,9 @@ function RowActions({
             <Button
               variant={user.status === "BLOCKED" ? "default" : "destructive"}
               onClick={() => {
-                onChangeStatus(user.status === "BLOCKED" ? "ACTIVE" : "BLOCKED");
+                onChangeStatus(
+                  user.status === "BLOCKED" ? "ACTIVE" : "BLOCKED",
+                );
                 setStatusOpen(false);
               }}
               disabled={statusPending}

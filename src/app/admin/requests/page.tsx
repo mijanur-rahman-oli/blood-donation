@@ -1,13 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 
-import { Badge, Button, Card, CardContent, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Select, Skeleton } from "@/components/admin/primitives";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Select,
+  Skeleton,
+} from "@/components/admin/primitives";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Pagination } from "@/components/shared/Pagination";
+import { PaginationMeta } from "@/components/shared/PaginationMeta";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { MoreHorizontalIcon } from "@/components/admin/icons";
@@ -44,8 +58,7 @@ import type {
    /admin/requests — Blood request admin
    ----------------------------------------------------------------------
    URL-synced filters. Mutations: verify + assignDonor, both invalidate
-   the relevant keys. The "Find Matches" dialog opens a second query
-   for /blood-requests/:id/matches and renders the assign controls.
+   the relevant keys. Verify has an optimistic update.
    ---------------------------------------------------------------------- */
 
 interface RequestsFilters {
@@ -85,7 +98,7 @@ export default function AdminRequestsPage() {
         priority: filters.priority,
         bloodGroup: filters.bloodGroup,
       }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
@@ -93,11 +106,48 @@ export default function AdminRequestsPage() {
 
   const verifyMutation = useMutation({
     mutationFn: (id: string) => bloodRequestsApi.verify(id),
-    onSuccess: () => {
-      toast.success("Request verified", "The request is now visible to donors.");
-      void queryClient.invalidateQueries({ queryKey: ["admin", "blood-requests"] });
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({
+        queryKey: ["admin", "blood-requests", filters],
+      });
+      const previous = queryClient.getQueryData<
+        PaginatedResult<BloodRequest> | undefined
+      >(["admin", "blood-requests", filters]);
+      if (previous) {
+        queryClient.setQueryData<PaginatedResult<BloodRequest>>(
+          ["admin", "blood-requests", filters],
+          {
+            ...previous,
+            result: previous.result.map((r) =>
+              r.id === id
+                ? {
+                    ...r,
+                    status: "VERIFIED",
+                    verifiedAt: new Date().toISOString(),
+                  }
+                : r,
+            ),
+          },
+        );
+      }
+      return { previous };
     },
-    onError: (error) => {
+    onSuccess: () => {
+      toast.success(
+        "Request verified",
+        "The request is now visible to donors.",
+      );
+      void queryClient.invalidateQueries({
+        queryKey: ["admin", "blood-requests"],
+      });
+    },
+    onError: (error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          ["admin", "blood-requests", filters],
+          context.previous,
+        );
+      }
       toast.error("Failed to verify", extractApiError(error));
     },
   });
@@ -117,7 +167,9 @@ export default function AdminRequestsPage() {
         header: "Patient",
         cell: (row) => (
           <div>
-            <p className="text-sm font-semibold text-foreground">{row.patientName}</p>
+            <p className="text-sm font-semibold text-foreground">
+              {row.patientName}
+            </p>
             <p className="text-xs text-muted-foreground">
               {row.hospitalName} · {row.location}
             </p>
@@ -135,7 +187,9 @@ export default function AdminRequestsPage() {
         accessor: "units",
         header: "Units",
         cell: (row) => (
-          <span className="text-sm font-medium text-foreground">{row.units}</span>
+          <span className="text-sm font-medium text-foreground">
+            {row.units}
+          </span>
         ),
       },
       {
@@ -163,7 +217,9 @@ export default function AdminRequestsPage() {
         accessor: "createdAt",
         header: "Created",
         cell: (row) => (
-          <span className="text-xs text-muted-foreground">{formatDate(row.createdAt)}</span>
+          <span className="text-xs text-muted-foreground">
+            {formatDate(row.createdAt)}
+          </span>
         ),
       },
       {
@@ -191,6 +247,8 @@ export default function AdminRequestsPage() {
     Boolean(filters.priority) ||
     Boolean(filters.bloodGroup) ||
     Boolean(filters.q);
+  const requests = query.data?.result ?? [];
+  const meta = query.data?.meta;
 
   return (
     <div className="space-y-6">
@@ -216,7 +274,10 @@ export default function AdminRequestsPage() {
             }
             options={[
               { value: "ALL", label: "All statuses" },
-              ...REQUEST_STATUSES.map((s) => ({ value: s, label: REQUEST_STATUS_LABELS[s] })),
+              ...REQUEST_STATUSES.map((s) => ({
+                value: s,
+                label: REQUEST_STATUS_LABELS[s],
+              })),
             ]}
             aria-label="Status filter"
           />
@@ -224,13 +285,17 @@ export default function AdminRequestsPage() {
             value={filters.priority ?? "ALL"}
             onChange={(event) =>
               update({
-                priority: event.target.value === "ALL" ? null : event.target.value,
+                priority:
+                  event.target.value === "ALL" ? null : event.target.value,
                 page: 1,
               })
             }
             options={[
               { value: "ALL", label: "All priorities" },
-              ...PRIORITIES.map((p) => ({ value: p, label: PRIORITY_LABELS[p] })),
+              ...PRIORITIES.map((p) => ({
+                value: p,
+                label: PRIORITY_LABELS[p],
+              })),
             ]}
             aria-label="Priority filter"
           />
@@ -238,13 +303,17 @@ export default function AdminRequestsPage() {
             value={filters.bloodGroup ?? "ALL"}
             onChange={(event) =>
               update({
-                bloodGroup: event.target.value === "ALL" ? null : event.target.value,
+                bloodGroup:
+                  event.target.value === "ALL" ? null : event.target.value,
                 page: 1,
               })
             }
             options={[
               { value: "ALL", label: "All blood groups" },
-              ...BLOOD_GROUPS.map((g) => ({ value: g, label: BLOOD_GROUP_LABELS[g] })),
+              ...BLOOD_GROUPS.map((g) => ({
+                value: g,
+                label: BLOOD_GROUP_LABELS[g],
+              })),
             ]}
             aria-label="Blood group filter"
           />
@@ -252,12 +321,23 @@ export default function AdminRequestsPage() {
             {hasFilters ? (
               <Button
                 variant="outline"
-                onClick={() => remove(["q", "status", "priority", "bloodGroup", "page", "limit"])}
+                onClick={() =>
+                  remove([
+                    "q",
+                    "status",
+                    "priority",
+                    "bloodGroup",
+                    "page",
+                    "limit",
+                  ])
+                }
               >
                 Clear filters
               </Button>
             ) : (
-              <span className="text-xs text-muted-foreground">No filters applied</span>
+              <span className="text-xs text-muted-foreground">
+                No filters applied
+              </span>
             )}
           </div>
         </CardContent>
@@ -271,10 +351,11 @@ export default function AdminRequestsPage() {
         />
       ) : (
         <>
+          <PaginationMeta meta={meta} resource="requests" />
           <DataTable
             columns={columns}
-            data={query.data?.result ?? []}
-            isLoading={query.isLoading}
+            data={requests}
+            isLoading={query.isLoading && !query.data}
             rowKey={(row) => row.id}
             emptyState={
               <EmptyState
@@ -288,10 +369,9 @@ export default function AdminRequestsPage() {
               />
             }
           />
-          <Pagination
-            total={query.data?.meta.total ?? 0}
-            totalPages={query.data?.meta.totalPages ?? 1}
-          />
+          {meta && meta.total > 0 ? (
+            <Pagination total={meta.total} totalPages={meta.totalPages} />
+          ) : null}
         </>
       )}
 
@@ -301,7 +381,9 @@ export default function AdminRequestsPage() {
         onOpenChange={setMatchesOpen}
         onAssigned={() => {
           setMatchesOpen(false);
-          void queryClient.invalidateQueries({ queryKey: ["admin", "blood-requests"] });
+          void queryClient.invalidateQueries({
+            queryKey: ["admin", "blood-requests"],
+          });
         }}
       />
     </div>
@@ -325,7 +407,10 @@ function RowActions({
   const canVerify = request.status === "PENDING";
   const canMatch = request.status === "VERIFIED" || request.status === "MATCHING";
   return (
-    <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
+    <div
+      className="flex justify-end"
+      onClick={(event) => event.stopPropagation()}
+    >
       <DropdownMenu>
         <DropdownMenuTrigger
           className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
@@ -346,7 +431,9 @@ function RowActions({
             </DropdownMenuItem>
           ) : null}
           {canMatch ? (
-            <DropdownMenuItem onClick={onFindMatches}>Find matches</DropdownMenuItem>
+            <DropdownMenuItem onClick={onFindMatches}>
+              Find matches
+            </DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -372,7 +459,10 @@ function FindMatchesDialog({
 
   const matchesQuery = useQuery<PaginatedResult<DonorSearchResult>, Error>({
     queryKey: ["blood-requests", request?.id, "matches"],
-    queryFn: () => bloodRequestsApi.getMatches(request!.id),
+    queryFn: () => {
+      if (!request) throw new Error("No request selected");
+      return bloodRequestsApi.getMatches(request.id);
+    },
     enabled: Boolean(request) && open,
     staleTime: 30_000,
   });
@@ -382,7 +472,9 @@ function FindMatchesDialog({
       bloodRequestsApi.assignDonor(input.id, { donorId: input.donorId }),
     onSuccess: () => {
       toast.success("Donor assigned", "The case is now ASSIGNED.");
-      void queryClient.invalidateQueries({ queryKey: ["admin", "blood-requests"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["admin", "blood-requests"],
+      });
       void queryClient.invalidateQueries({
         queryKey: ["blood-requests", request?.id, "matches"],
       });
@@ -398,7 +490,8 @@ function FindMatchesDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            Compatible Donors{request ? ` for ${request.patientName}` : ""}
+            Compatible Donors
+            {request ? ` for ${request.patientName}` : ""}
           </DialogTitle>
           <DialogDescription>
             {request
@@ -410,7 +503,10 @@ function FindMatchesDialog({
           {matchesQuery.isLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-md border border-border p-3">
+                <div
+                  key={i}
+                  className="flex items-center gap-3 rounded-md border border-border p-3"
+                >
                   <Skeleton className="h-9 w-9 rounded-full" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-3 w-32" />
@@ -433,7 +529,8 @@ function FindMatchesDialog({
             <ul className="space-y-2">
               {matchesQuery.data.result.map((donor) => {
                 const isPending =
-                  assignMutation.isPending && assignMutation.variables?.donorId === donor.profileId;
+                  assignMutation.isPending &&
+                  assignMutation.variables?.donorId === donor.profileId;
                 return (
                   <li
                     key={donor.profileId}
@@ -470,7 +567,10 @@ function FindMatchesDialog({
                         disabled={!donor.availability || isPending}
                         onClick={() =>
                           request &&
-                          assignMutation.mutate({ id: request.id, donorId: donor.profileId })
+                          assignMutation.mutate({
+                            id: request.id,
+                            donorId: donor.profileId,
+                          })
                         }
                       >
                         {isPending ? "Assigning…" : "Assign"}

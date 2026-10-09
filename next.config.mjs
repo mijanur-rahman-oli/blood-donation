@@ -26,8 +26,8 @@ const nextConfig = {
   },
 
   // Experimental flags used by the scaffold.
-  cacheComponents: true,
-  partialPrefetching: true,
+  cacheComponents: false,
+  partialPrefetching: false,
 
   // Tailwind v4 is processed via the @tailwindcss/turbopack loader.
   turbopack: {

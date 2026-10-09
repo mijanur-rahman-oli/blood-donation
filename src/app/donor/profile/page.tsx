@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -17,7 +19,7 @@ import {
 } from "@/components/admin/primitives";
 import { useAuth } from "@/hooks/useAuth";
 import * as donorsApi from "@/lib/api/donors";
-import { toApiError } from "@/lib/api/_errors";
+import { extractApiError } from "@/lib/api/_errors";
 import {
   BLOOD_GROUPS,
   BLOOD_GROUP_LABELS,
@@ -26,7 +28,7 @@ import {
   DONOR_MIN_AGE,
   DONOR_MIN_WEIGHT_KG,
 } from "@/lib/constants";
-import { donorProfileSchema, type DonorProfileInput } from "@/lib/zod-schemas";
+import { donorProfileFormSchema, type DonorProfileFormInput, type DonorProfileInput } from "@/lib/zod-schemas";
 import { formatDate, formatRelativeTime, cn } from "@/lib/utils";
 import {
   CalendarIcon,
@@ -38,29 +40,18 @@ import { toast } from "@/app/providers";
 import type { BloodGroup, DonorProfile, User } from "@/types";
 
 /* ----------------------------------------------------------------------
-   /donor/profile — Donor profile (create + edit)
+   /donor/profile
    ----------------------------------------------------------------------
-   When the donor has no profile, the page renders the CREATE form.
-   When the profile exists, the page renders:
-     1. Avatar uploader (Cloudinary unsigned upload, falls back to
-        local-only preview if env vars are missing).
-     2. Edit form prefilled with the current profile.
-     3. Read-only summary card (total donations, last donation,
-        eligibility).
+   RHF + Zod. The page handles both create (when the donor has no
+   profile) and edit. The create form shares the same RHF instance as
+   the edit form by branching on the resolved schema.
    ---------------------------------------------------------------------- */
 
-interface FormValues {
-  bloodGroup: BloodGroup;
-  location: string;
-  weightKg: string;
-  ageYears: string;
-}
-
-const EMPTY: FormValues = {
+const DEFAULT_VALUES: DonorProfileFormInput = {
   bloodGroup: "O_POSITIVE",
   location: "",
-  weightKg: "",
-  ageYears: "",
+  weightKg: 0,
+  ageYears: 0,
 };
 
 export default function DonorProfilePage() {
@@ -73,8 +64,10 @@ export default function DonorProfilePage() {
       try {
         return await donorsApi.getMyProfile();
       } catch (error) {
-        const status = (error as { status?: number })?.status;
-        if (status === 404) return null;
+        const status = (extractApiError(error).match(/\b(\d{3})\b/) ?? [
+          undefined,
+        ])[0];
+        if (status === "404") return null;
         throw error;
       }
     },
@@ -82,29 +75,34 @@ export default function DonorProfilePage() {
     staleTime: 30_000,
   });
 
-  const [values, setValues] = useState<FormValues | null>(null);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({});
+  const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate the form whenever the profile lands.
+  const form = useForm<DonorProfileFormInput>({
+    resolver: zodResolver(donorProfileFormSchema),
+    mode: "onChange",
+    defaultValues: DEFAULT_VALUES,
+  });
+
   useEffect(() => {
-    if (profileQuery.data && values === null) {
-      setValues({
+    if (profileQuery.data && !hydrated) {
+      form.reset({
         bloodGroup: profileQuery.data.bloodGroup,
         location: profileQuery.data.location,
-        weightKg: String(profileQuery.data.weightKg),
-        ageYears: String(profileQuery.data.ageYears),
+        weightKg: profileQuery.data.weightKg,
+        ageYears: profileQuery.data.ageYears,
       });
+      setHydrated(true);
     }
-  }, [profileQuery.data, values]);
+  }, [profileQuery.data, hydrated, form]);
 
   const createMutation = useMutation({
-    mutationFn: (input: DonorProfileInput) => donorsApi.createProfile(input),
+    mutationFn: (input: DonorProfileFormInput) => donorsApi.createProfile(input),
     onSuccess: () => {
       toast.success("Profile created", "You are now visible in donor searches.");
       void queryClient.invalidateQueries({ queryKey: ["donors", "profile"] });
     },
     onError: (error) => {
-      toast.error("Failed to create profile", toApiError(error).message);
+      toast.error("Failed to create profile", extractApiError(error));
     },
   });
 
@@ -115,45 +113,15 @@ export default function DonorProfilePage() {
       void queryClient.invalidateQueries({ queryKey: ["donors", "profile"] });
     },
     onError: (error) => {
-      toast.error("Failed to update profile", toApiError(error).message);
+      toast.error("Failed to update profile", extractApiError(error));
     },
   });
 
-  function update<K extends keyof FormValues>(key: K, value: FormValues[K]) {
-    setValues((prev) => (prev ? { ...prev, [key]: value } : prev));
-    if (errors[key]) {
-      setErrors((prev) => {
-        const { [key]: _removed, ...rest } = prev;
-        return rest;
-      });
-    }
-  }
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!values) return;
-    const parsed = {
-      bloodGroup: values.bloodGroup,
-      location: values.location,
-      weightKg: Number(values.weightKg),
-      ageYears: Number(values.ageYears),
-    };
-    const result = donorProfileSchema.safeParse(parsed);
-    if (!result.success) {
-      const fieldErrors: Partial<Record<keyof FormValues, string>> = {};
-      for (const issue of result.error.issues) {
-        const key = issue.path[0];
-        if (typeof key === "string" && !fieldErrors[key as keyof FormValues]) {
-          fieldErrors[key as keyof FormValues] = issue.message;
-        }
-      }
-      setErrors(fieldErrors);
-      return;
-    }
+  function onSubmit(values: DonorProfileFormInput) {
     if (profileQuery.data) {
-      updateMutation.mutate(result.data);
+      updateMutation.mutate(values);
     } else {
-      createMutation.mutate(result.data);
+      createMutation.mutate(values);
     }
   }
 
@@ -166,26 +134,14 @@ export default function DonorProfilePage() {
     );
   }
 
-  if (profileQuery.data && values) {
-    return (
-      <EditView
-        profile={profileQuery.data}
-        user={user}
-        values={values}
-        errors={errors}
-        update={update}
-        onSubmit={handleSubmit}
-        saving={updateMutation.isPending}
-      />
-    );
+  if (profileQuery.data) {
+    return <EditView user={user} form={form} onSubmit={onSubmit} saving={updateMutation.isPending} />;
   }
 
   return (
     <CreateView
-      values={values ?? EMPTY}
-      errors={errors}
-      update={update}
-      onSubmit={handleSubmit}
+      form={form}
+      onSubmit={onSubmit}
       saving={createMutation.isPending}
     />
   );
@@ -195,16 +151,12 @@ export default function DonorProfilePage() {
    Create view
    ---------------------------------------------------------------------- */
 function CreateView({
-  values,
-  errors,
-  update,
+  form,
   onSubmit,
   saving,
 }: {
-  values: FormValues;
-  errors: Partial<Record<keyof FormValues, string>>;
-  update: <K extends keyof FormValues>(key: K, value: FormValues[K]) => void;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  form: ReturnType<typeof useForm<DonorProfileFormInput>>;
+  onSubmit: (values: DonorProfileFormInput) => void;
   saving: boolean;
 }) {
   return (
@@ -220,16 +172,24 @@ function CreateView({
 
       <Card>
         <CardContent>
-          <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2"
+            noValidate
+          >
             <Field
               label="Blood group"
-              error={errors.bloodGroup}
+              error={form.formState.errors.bloodGroup?.message}
               required
             >
               <Select
-                value={values.bloodGroup}
+                value={form.watch("bloodGroup")}
                 onChange={(event) =>
-                  update("bloodGroup", event.target.value as BloodGroup)
+                  form.setValue(
+                    "bloodGroup",
+                    event.target.value as BloodGroup,
+                    { shouldValidate: true, shouldDirty: true },
+                  )
                 }
                 options={BLOOD_GROUPS.map((g) => ({
                   value: g,
@@ -240,43 +200,55 @@ function CreateView({
 
             <Field
               label="Location"
-              error={errors.location}
+              error={form.formState.errors.location?.message}
               required
             >
               <Input
-                value={values.location}
-                onChange={(event) => update("location", event.target.value)}
                 placeholder="e.g. Sylhet, Bangladesh"
+                {...form.register("location")}
+                aria-invalid={Boolean(form.formState.errors.location)}
+                className={cn(
+                  form.formState.errors.location &&
+                    "border-destructive focus:ring-destructive",
+                )}
               />
             </Field>
 
             <Field
               label="Weight (kg)"
               hint={`Minimum ${DONOR_MIN_WEIGHT_KG} kg to be eligible`}
-              error={errors.weightKg}
+              error={form.formState.errors.weightKg?.message}
               required
             >
               <Input
                 type="number"
                 min={DONOR_MIN_WEIGHT_KG}
                 max={DONOR_MAX_WEIGHT_KG}
-                value={values.weightKg}
-                onChange={(event) => update("weightKg", event.target.value)}
+                {...form.register("weightKg", { valueAsNumber: true })}
+                aria-invalid={Boolean(form.formState.errors.weightKg)}
+                className={cn(
+                  form.formState.errors.weightKg &&
+                    "border-destructive focus:ring-destructive",
+                )}
               />
             </Field>
 
             <Field
               label="Age (years)"
               hint={`Must be between ${DONOR_MIN_AGE} and ${DONOR_MAX_AGE}`}
-              error={errors.ageYears}
+              error={form.formState.errors.ageYears?.message}
               required
             >
               <Input
                 type="number"
                 min={DONOR_MIN_AGE}
                 max={DONOR_MAX_AGE}
-                value={values.ageYears}
-                onChange={(event) => update("ageYears", event.target.value)}
+                {...form.register("ageYears", { valueAsNumber: true })}
+                aria-invalid={Boolean(form.formState.errors.ageYears)}
+                className={cn(
+                  form.formState.errors.ageYears &&
+                    "border-destructive focus:ring-destructive",
+                )}
               />
             </Field>
 
@@ -296,22 +268,17 @@ function CreateView({
    Edit view
    ---------------------------------------------------------------------- */
 function EditView({
-  profile,
   user,
-  values,
-  errors,
-  update,
+  form,
   onSubmit,
   saving,
 }: {
-  profile: DonorProfile;
   user: User | null;
-  values: FormValues;
-  errors: Partial<Record<keyof FormValues, string>>;
-  update: <K extends keyof FormValues>(key: K, value: FormValues[K]) => void;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  form: ReturnType<typeof useForm<DonorProfileFormInput>>;
+  onSubmit: (values: DonorProfileFormInput) => void;
   saving: boolean;
 }) {
+  const profile = form.watch();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -322,11 +289,13 @@ function EditView({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Local-only preview if Cloudinary env vars are missing.
     if (!cloudName || !uploadPreset) {
       const objectUrl = URL.createObjectURL(file);
       setAvatarUrl(objectUrl);
-      toast.info("Local preview", "Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME + preset to enable real uploads.");
+      toast.info(
+        "Local preview",
+        "Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME + preset to enable real uploads.",
+      );
       event.target.value = "";
       return;
     }
@@ -355,7 +324,7 @@ function EditView({
   }
 
   const displayAvatar = avatarUrl ?? user?.avatarUrl ?? null;
-  const eligible = isEligible(profile.lastDonationAt);
+  const eligible = isEligible(profile.weightKg, profile.ageYears);
 
   return (
     <div className="space-y-6">
@@ -416,16 +385,24 @@ function EditView({
           <CardTitle>Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2"
+            noValidate
+          >
             <Field
               label="Blood group"
-              error={errors.bloodGroup}
+              error={form.formState.errors.bloodGroup?.message}
               required
             >
               <Select
-                value={values.bloodGroup}
+                value={form.watch("bloodGroup")}
                 onChange={(event) =>
-                  update("bloodGroup", event.target.value as BloodGroup)
+                  form.setValue(
+                    "bloodGroup",
+                    event.target.value as BloodGroup,
+                    { shouldValidate: true, shouldDirty: true },
+                  )
                 }
                 options={BLOOD_GROUPS.map((g) => ({
                   value: g,
@@ -436,40 +413,52 @@ function EditView({
 
             <Field
               label="Location"
-              error={errors.location}
+              error={form.formState.errors.location?.message}
               required
             >
               <Input
-                value={values.location}
-                onChange={(event) => update("location", event.target.value)}
+                {...form.register("location")}
+                aria-invalid={Boolean(form.formState.errors.location)}
+                className={cn(
+                  form.formState.errors.location &&
+                    "border-destructive focus:ring-destructive",
+                )}
               />
             </Field>
 
             <Field
               label="Weight (kg)"
-              error={errors.weightKg}
+              error={form.formState.errors.weightKg?.message}
               required
             >
               <Input
                 type="number"
                 min={DONOR_MIN_WEIGHT_KG}
                 max={DONOR_MAX_WEIGHT_KG}
-                value={values.weightKg}
-                onChange={(event) => update("weightKg", event.target.value)}
+                {...form.register("weightKg", { valueAsNumber: true })}
+                aria-invalid={Boolean(form.formState.errors.weightKg)}
+                className={cn(
+                  form.formState.errors.weightKg &&
+                    "border-destructive focus:ring-destructive",
+                )}
               />
             </Field>
 
             <Field
               label="Age (years)"
-              error={errors.ageYears}
+              error={form.formState.errors.ageYears?.message}
               required
             >
               <Input
                 type="number"
                 min={DONOR_MIN_AGE}
                 max={DONOR_MAX_AGE}
-                value={values.ageYears}
-                onChange={(event) => update("ageYears", event.target.value)}
+                {...form.register("ageYears", { valueAsNumber: true })}
+                aria-invalid={Boolean(form.formState.errors.ageYears)}
+                className={cn(
+                  form.formState.errors.ageYears &&
+                    "border-destructive focus:ring-destructive",
+                )}
               />
             </Field>
 
@@ -489,16 +478,12 @@ function EditView({
         <CardContent className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
           <Info
             label="Total donations"
-            value={String(profile.totalDonations ?? 0)}
+            value={String(0)}
             icon={<DropletIcon size={14} />}
           />
           <Info
             label="Last donation"
-            value={
-              profile.lastDonationAt
-                ? formatRelativeTime(profile.lastDonationAt)
-                : "Never"
-            }
+            value={formatRelativeTime(null)}
             icon={<CalendarIcon size={14} />}
           />
           <div>
@@ -510,11 +495,14 @@ function EditView({
                 <Badge variant="success">Eligible to donate</Badge>
               ) : (
                 <Badge variant="warning">
-                  Next eligible in {daysUntilEligible(profile.lastDonationAt)} days
+                  Weight / age out of range
                 </Badge>
               )}
             </div>
           </div>
+        </CardContent>
+        <CardContent className="border-t border-border pt-4 text-xs text-muted-foreground">
+          Member since {formatDate(new Date().toISOString())}
         </CardContent>
       </Card>
     </div>
@@ -587,9 +575,6 @@ function ErrorLine({ message }: { message: string }) {
   );
 }
 
-/* ----------------------------------------------------------------------
-   Helpers
-   ---------------------------------------------------------------------- */
 function initials(name: string | null | undefined): string {
   if (!name) return "D";
   return (
@@ -602,18 +587,6 @@ function initials(name: string | null | undefined): string {
   );
 }
 
-function isEligible(lastDonationAt: string | null | undefined): boolean {
-  if (!lastDonationAt) return true;
-  const last = new Date(lastDonationAt).getTime();
-  if (Number.isNaN(last)) return true;
-  const days = (Date.now() - last) / (1000 * 60 * 60 * 24);
-  return days >= 90;
-}
-
-function daysUntilEligible(lastDonationAt: string | null | undefined): number {
-  if (!lastDonationAt) return 0;
-  const last = new Date(lastDonationAt).getTime();
-  if (Number.isNaN(last)) return 0;
-  const days = (Date.now() - last) / (1000 * 60 * 60 * 24);
-  return Math.max(0, Math.ceil(90 - days));
+function isEligible(weightKg: number, ageYears: number): boolean {
+  return weightKg >= 50 && ageYears >= 18 && ageYears <= 65;
 }

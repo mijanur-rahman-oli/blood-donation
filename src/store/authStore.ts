@@ -13,9 +13,11 @@ import type { User } from "@/types";
      - `isHydrated`  : false until the first /users/me attempt completes
                        (success or failure) so the UI can avoid hydration
                        mismatch on the server-rendered shell
-     - `setUser`     : imperative setter used by /api/auth/* route-handler
-                       responses and by the /login page after a successful
-                       one-click demo login
+     - `setUser`     : full `User` setter, used after `/users/me`
+     - `setSessionUser`: partial setter (id+name+email+role) used by the
+                       /api/auth/* responses that don't ship the full
+                       User document. Fills sensible defaults for the
+                       missing fields.
      - `clear`       : clears the local store; the httpOnly cookies are
                        removed by the /api/auth/logout route handler
      - `hydrate`     : called from the root Providers on mount; performs
@@ -31,6 +33,7 @@ interface AuthState {
 
 interface AuthActions {
   setUser: (user: User | null) => void;
+  setSessionUser: (input: { id: string; name: string; email: string; role: User["role"] }) => void;
   clear: () => void;
   hydrate: () => Promise<void>;
 }
@@ -54,6 +57,25 @@ export const useAuthStore = create<AuthStore>((set) => ({
       isLoading: false,
       error: null,
     }),
+
+  setSessionUser: (input) => {
+    const now = new Date().toISOString();
+    const next: User = {
+      id: input.id,
+      name: input.name,
+      email: input.email,
+      role: input.role,
+      status: "ACTIVE",
+      createdAt: now,
+      updatedAt: now,
+    };
+    set({
+      user: next,
+      isHydrated: true,
+      isLoading: false,
+      error: null,
+    });
+  },
 
   clear: () =>
     set({

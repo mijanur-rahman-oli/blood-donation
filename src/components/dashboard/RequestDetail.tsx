@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,7 @@ import {
   DialogTitle,
   Input,
   Label,
+  Select,
   Skeleton,
   Textarea,
 } from "@/components/admin/primitives";
@@ -31,6 +32,7 @@ import * as paymentsApi from "@/lib/api/payments";
 import { extractApiError } from "@/lib/api/_errors";
 import {
   BLOOD_GROUP_LABELS,
+  PRIORITIES,
   PRIORITY_LABELS,
   VERIFICATION_FEE_AMOUNT,
 } from "@/lib/constants";
@@ -49,14 +51,14 @@ import {
   DropletIcon,
 } from "@/components/dashboard/icons";
 import { toast } from "@/app/providers";
-import type { BloodRequest, RequestStatus } from "@/types";
+import type { BloodRequest, Priority, RequestStatus } from "@/types";
 
 /* ----------------------------------------------------------------------
-   RequestDetail (client)
+   RequestDetail
    ----------------------------------------------------------------------
-   Two-column layout: patient / hospital / assignment cards on the left,
-   status timeline + verification-fee card + action card on the right.
-   Includes an Edit dialog and a Cancel confirmation dialog.
+   Two-column layout. Mutation: cancel (optimistic), edit (pessimistic
+   with the inline Edit dialog). Pay button is gated on
+   user.role === "REQUESTER" so admins/donors never see it.
    ---------------------------------------------------------------------- */
 
 const TIMELINE_STEPS: ReadonlyArray<{ key: RequestStatus; label: string }> = [
@@ -82,8 +84,11 @@ export default function RequestDetail({ id }: { id: string }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (input: { units?: number; notes?: string; priority?: BloodRequest["priority"] }) =>
-      bloodRequestsApi.update(id, input),
+    mutationFn: (input: {
+      units?: number;
+      notes?: string;
+      priority?: Priority;
+    }) => bloodRequestsApi.update(id, input),
     onSuccess: () => {
       toast.success("Request updated");
       void queryClient.invalidateQueries({ queryKey: ["blood-requests", id] });
@@ -97,13 +102,33 @@ export default function RequestDetail({ id }: { id: string }) {
 
   const cancelMutation = useMutation({
     mutationFn: () => bloodRequestsApi.cancel(id),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["blood-requests", id] });
+      const previous = queryClient.getQueryData<BloodRequest | undefined>([
+        "blood-requests",
+        id,
+      ]);
+      if (previous) {
+        queryClient.setQueryData<BloodRequest>(
+          ["blood-requests", id],
+          (prev) =>
+            prev
+              ? { ...prev, status: "CANCELLED", updatedAt: new Date().toISOString() }
+              : prev,
+        );
+      }
+      return { previous };
+    },
     onSuccess: () => {
       toast.success("Request cancelled", "The case has been marked CANCELLED.");
       void queryClient.invalidateQueries({ queryKey: ["blood-requests"] });
       void queryClient.invalidateQueries({ queryKey: ["blood-requests", id] });
       router.push("/dashboard");
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["blood-requests", id], context.previous);
+      }
       toast.error("Failed to cancel", extractApiError(error));
     },
   });
@@ -142,7 +167,7 @@ export default function RequestDetail({ id }: { id: string }) {
     );
   }
 
-  if (query.isError) {
+  if (query.isError || !query.data) {
     return (
       <EmptyState
         title="Request not found"
@@ -160,8 +185,12 @@ export default function RequestDetail({ id }: { id: string }) {
   }
 
   const request = query.data;
+  const isRequester = user?.role === "REQUESTER";
   const activeIndex = TIMELINE_STEPS.findIndex((s) => s.key === request.status);
   const isCancelled = request.status === "CANCELLED";
+  const canPay =
+    isRequester &&
+    (request.status === "PENDING" || request.status === "VERIFIED");
 
   return (
     <div className="space-y-6">
@@ -181,17 +210,7 @@ export default function RequestDetail({ id }: { id: string }) {
               {request.patientName}
             </h1>
             <StatusBadge status={request.status} />
-            <Badge
-              variant={
-                request.priority === "CRITICAL"
-                  ? "destructive"
-                  : request.priority === "HIGH"
-                  ? "warning"
-                  : request.priority === "MEDIUM"
-                  ? "info"
-                  : "default"
-              }
-            >
+            <Badge variant={priorityBadgeVariant(request.priority)}>
               {PRIORITY_LABELS[request.priority]}
             </Badge>
           </div>
@@ -205,7 +224,6 @@ export default function RequestDetail({ id }: { id: string }) {
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* LEFT column */}
         <div className="space-y-4 lg:col-span-2">
           <Card>
             <CardHeader>
@@ -216,7 +234,9 @@ export default function RequestDetail({ id }: { id: string }) {
               <Info
                 label="Blood group"
                 value={
-                  <Badge variant="primary">{BLOOD_GROUP_LABELS[request.bloodGroup]}</Badge>
+                  <Badge variant="primary">
+                    {BLOOD_GROUP_LABELS[request.bloodGroup]}
+                  </Badge>
                 }
               />
               <Info
@@ -232,7 +252,9 @@ export default function RequestDetail({ id }: { id: string }) {
               {request.notes ? (
                 <Info
                   label="Notes"
-                  value={<span className="whitespace-pre-wrap">{request.notes}</span>}
+                  value={
+                    <span className="whitespace-pre-wrap">{request.notes}</span>
+                  }
                   className="sm:col-span-2"
                 />
               ) : null}
@@ -249,17 +271,7 @@ export default function RequestDetail({ id }: { id: string }) {
               <Info
                 label="Priority"
                 value={
-                  <Badge
-                    variant={
-                      request.priority === "CRITICAL"
-                        ? "destructive"
-                        : request.priority === "HIGH"
-                        ? "warning"
-                        : request.priority === "MEDIUM"
-                        ? "info"
-                        : "default"
-                    }
-                  >
+                  <Badge variant={priorityBadgeVariant(request.priority)}>
                     {PRIORITY_LABELS[request.priority]}
                   </Badge>
                 }
@@ -296,7 +308,9 @@ export default function RequestDetail({ id }: { id: string }) {
                 <Info
                   label="Assigned at"
                   value={
-                    <span title={formatDateTime(request.assignment.assignedAt)}>
+                    <span
+                      title={formatDateTime(request.assignment.assignedAt)}
+                    >
                       {formatDateTime(request.assignment.assignedAt)}
                     </span>
                   }
@@ -306,7 +320,6 @@ export default function RequestDetail({ id }: { id: string }) {
           ) : null}
         </div>
 
-        {/* RIGHT column */}
         <div className="space-y-4">
           <Card>
             <CardHeader>
@@ -330,19 +343,27 @@ export default function RequestDetail({ id }: { id: string }) {
                             : "bg-muted text-muted-foreground")
                         }
                       >
-                        {done ? <CheckIcon size={12} /> : <span className="h-2 w-2 rounded-full bg-current" />}
+                        {done ? (
+                          <CheckIcon size={12} />
+                        ) : (
+                          <span className="h-2 w-2 rounded-full bg-current" />
+                        )}
                       </span>
                       <div className="flex-1">
                         <p
                           className={
                             "text-sm font-semibold " +
-                            (done || current ? "text-foreground" : "text-muted-foreground")
+                            (done || current
+                              ? "text-foreground"
+                              : "text-muted-foreground")
                           }
                         >
                           {step.label}
                         </p>
                         {current ? (
-                          <p className="text-xs text-muted-foreground">In progress</p>
+                          <p className="text-xs text-muted-foreground">
+                            In progress
+                          </p>
                         ) : null}
                       </div>
                     </li>
@@ -357,8 +378,12 @@ export default function RequestDetail({ id }: { id: string }) {
                       <AlertTriangleIcon size={12} />
                     </span>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Cancelled</p>
-                      <p className="text-xs text-muted-foreground">This case was cancelled.</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        Cancelled
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        This case was cancelled.
+                      </p>
                     </div>
                   </li>
                 ) : null}
@@ -366,7 +391,7 @@ export default function RequestDetail({ id }: { id: string }) {
             </CardContent>
           </Card>
 
-          {(request.status === "PENDING" || request.status === "VERIFIED") ? (
+          {canPay ? (
             <Card>
               <CardHeader>
                 <CardTitle>Verification fee</CardTitle>
@@ -394,7 +419,7 @@ export default function RequestDetail({ id }: { id: string }) {
             </Card>
           ) : null}
 
-          {request.status === "PENDING" ? (
+          {isRequester && request.status === "PENDING" ? (
             <Card>
               <CardHeader>
                 <CardTitle>Actions</CardTitle>
@@ -474,13 +499,13 @@ function EditDialog({
   onSave: (input: {
     units?: number;
     notes?: string;
-    priority?: BloodRequest["priority"];
+    priority?: Priority;
   }) => void;
   saving: boolean;
 }) {
   const [units, setUnits] = useState(String(request.units));
   const [notes, setNotes] = useState(request.notes ?? "");
-  const [priority, setPriority] = useState<BloodRequest["priority"]>(request.priority);
+  const [priority, setPriority] = useState<Priority>(request.priority);
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -518,18 +543,12 @@ function EditDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="edit-priority">Priority</Label>
-            <select
+            <Select
               id="edit-priority"
               value={priority}
-              onChange={(event) => setPriority(event.target.value as BloodRequest["priority"])}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-            >
-              {(["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const).map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+              onChange={(event) => setPriority(event.target.value as Priority)}
+              options={PRIORITIES.map((p) => ({ value: p, label: p }))}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="edit-notes">Notes</Label>
@@ -541,7 +560,10 @@ function EditDialog({
             />
           </div>
           {error ? (
-            <p role="alert" className="text-xs font-medium text-destructive">
+            <p
+              role="alert"
+              className="text-xs font-medium text-destructive"
+            >
               {error}
             </p>
           ) : null}
@@ -563,9 +585,6 @@ function EditDialog({
   );
 }
 
-/* ----------------------------------------------------------------------
-   Info row
-   ---------------------------------------------------------------------- */
 function Info({
   label,
   value,
@@ -583,4 +602,20 @@ function Info({
       <div className="mt-0.5 text-sm text-foreground">{value}</div>
     </div>
   );
+}
+
+function priorityBadgeVariant(
+  priority: Priority,
+): "destructive" | "warning" | "info" | "default" {
+  switch (priority) {
+    case "CRITICAL":
+      return "destructive";
+    case "HIGH":
+      return "warning";
+    case "MEDIUM":
+      return "info";
+    case "LOW":
+    default:
+      return "default";
+  }
 }

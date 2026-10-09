@@ -211,14 +211,14 @@ export default function AdminDashboardPage() {
               <p className="text-sm text-destructive">
                 {recentRequests.error?.message ?? "Failed to load requests."}
               </p>
-            ) : recentRequests.data.result.length === 0 ? (
+            ) : (recentRequests.data?.result.length ?? 0) === 0 ? (
               <EmptyState
                 title="No recent requests"
                 description="New requests will appear here as they come in."
               />
             ) : (
               <ul className="space-y-2">
-                {recentRequests.data.result.map((req) => (
+                {(recentRequests.data?.result ?? []).map((req) => (
                   <li
                     key={req.id}
                     className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
@@ -291,14 +291,14 @@ export default function AdminDashboardPage() {
               <p className="text-sm text-destructive">
                 {recentActivity.error?.message ?? "Failed to load activity."}
               </p>
-            ) : recentActivity.data.result.length === 0 ? (
+            ) : (recentActivity.data?.result.length ?? 0) === 0 ? (
               <EmptyState
                 title="No recent activity"
                 description="Admin actions will be logged here as they happen."
               />
             ) : (
               <ul className="space-y-2">
-                {recentActivity.data.result.map((entry) => (
+                {(recentActivity.data?.result ?? []).map((entry) => (
                   <li
                     key={entry.id}
                     className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
