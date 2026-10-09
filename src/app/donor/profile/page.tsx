@@ -66,10 +66,13 @@ export default function DonorProfilePage() {
       try {
         return await donorsApi.getMyProfile();
       } catch (error) {
-        const status = (extractApiError(error).match(/\b(\d{3})\b/) ?? [
-          undefined,
-        ])[0];
-        if (status === "404") return null;
+        // 404 means the donor has no profile yet — show the create form.
+        // 401 (no session) bubbles up so RoleGuard handles the redirect.
+        const status =
+          typeof error === "object" && error !== null && "status" in error
+            ? (error as { status?: number }).status
+            : undefined;
+        if (status === 404) return null;
         throw error;
       }
     },
@@ -137,7 +140,7 @@ export default function DonorProfilePage() {
   }
 
   if (profileQuery.data) {
-    return <EditView user={user} form={form} onSubmit={onSubmit} saving={updateMutation.isPending} />;
+    return <EditView user={user} profile={profileQuery.data} form={form} onSubmit={onSubmit} saving={updateMutation.isPending} />;
   }
 
   return (
@@ -267,16 +270,21 @@ function CreateView({
    ---------------------------------------------------------------------- */
 function EditView({
   user,
+  profile,
   form,
   onSubmit,
   saving,
 }: {
   user: User | null;
+  profile: DonorProfile;
   form: ReturnType<typeof useForm<DonorProfileFormInput>>;
   onSubmit: (values: DonorProfileFormInput) => void;
   saving: boolean;
 }) {
-  const profile = form.watch();
+  // Live form values (re-renders on every keystroke) for live eligibility
+  // computation. The persisted `profile` prop above is the source of
+  // truth for the "Member since" line.
+  const profileDraft = form.watch();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -322,7 +330,7 @@ function EditView({
   }
 
   const displayAvatar = avatarUrl ?? user?.avatarUrl ?? null;
-  const eligible = isEligible(profile.weightKg, profile.ageYears);
+  const eligible = isEligible(profileDraft.weightKg, profileDraft.ageYears);
 
   return (
     <PageContainer className="space-y-6">
@@ -496,7 +504,7 @@ function EditView({
           </div>
         </CardContent>
         <CardContent className="border-t border-border pt-4 text-xs text-muted-foreground">
-          Member since {formatDate(new Date().toISOString())}
+          Member since {formatDate(profile.createdAt)}
         </CardContent>
       </Card>
     </PageContainer>
