@@ -132,7 +132,7 @@ export function LoginForm() {
         password: values.password,
       });
       setUser(data.user);
-      router.replace(resolveRedirectPath(data.user.role));
+      const target = resolveRedirectPath(data.user.role); window.location.href = target;
     } catch (error) {
       setGeneralError((error as Error).message);
     }
@@ -148,7 +148,7 @@ export function LoginForm() {
         password: account.password,
       });
       setUser(data.user);
-      router.replace(resolveRedirectPath(data.user.role));
+      const target = resolveRedirectPath(data.user.role); window.location.href = target;
     } catch (error) {
       setGeneralError((error as Error).message);
     } finally {
@@ -196,7 +196,7 @@ export function LoginForm() {
               return;
             }
             setUser(json.data.user);
-            router.replace(resolveRedirectPath(json.data.user.role));
+            const target = resolveRedirectPath(json.data.user.role); window.location.href = target;
           } catch (error) {
             setGeneralError((error as Error).message);
           }
