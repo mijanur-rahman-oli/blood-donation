@@ -207,7 +207,7 @@ export default function DashboardOverviewPage() {
                       {BLOOD_GROUP_LABELS[request.bloodGroup]}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      {request.units} unit{request.units === 1 ? "" : "s"}
+                      {request.unitsNeeded} unit{request.unitsNeeded === 1 ? "" : "s"}
                     </span>
                     <Badge
                       variant={

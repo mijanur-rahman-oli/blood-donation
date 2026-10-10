@@ -85,7 +85,7 @@ export default function RequestDetail({ id }: { id: string }) {
 
   const updateMutation = useMutation({
     mutationFn: (input: {
-      units?: number;
+      unitsNeeded?: number;
       notes?: string;
       priority?: Priority;
     }) => bloodRequestsApi.update(id, input),
@@ -241,12 +241,18 @@ export default function RequestDetail({ id }: { id: string }) {
               />
               <Info
                 label="Units"
-                value={`${request.units} unit${request.units === 1 ? "" : "s"}`}
+                value={`${request.unitsNeeded} unit${request.unitsNeeded === 1 ? "" : "s"}`}
               />
               <Info label="Contact phone" value={request.contactPhone} />
+              {/*
+                The backend BloodRequest response does not include
+                `contactName` — that field is captured by the wizard
+                for local UI but is not part of the read payload.
+                Skip the row entirely when the value is missing.
+              */}
               <Info
                 label="Contact name"
-                value={request.contactName}
+                value={"—"}
                 className="sm:col-span-2"
               />
               {request.notes ? (
@@ -279,9 +285,13 @@ export default function RequestDetail({ id }: { id: string }) {
               <Info
                 label="Needed by"
                 value={
-                  <span title={formatDateTime(request.neededAt)}>
-                    {formatDateTime(request.neededAt)}
-                  </span>
+                  request.neededBy ? (
+                    <span title={formatDateTime(request.neededBy)}>
+                      {formatDateTime(request.neededBy)}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )
                 }
               />
             </CardContent>
@@ -497,13 +507,13 @@ function EditDialog({
   onOpenChange: (open: boolean) => void;
   request: BloodRequest;
   onSave: (input: {
-    units?: number;
+    unitsNeeded?: number;
     notes?: string;
     priority?: Priority;
   }) => void;
   saving: boolean;
 }) {
-  const [units, setUnits] = useState(String(request.units));
+  const [units, setUnits] = useState(String(request.unitsNeeded));
   const [notes, setNotes] = useState(request.notes ?? "");
   const [priority, setPriority] = useState<Priority>(request.priority);
   const [error, setError] = useState<string | null>(null);
@@ -516,7 +526,9 @@ function EditDialog({
       return;
     }
     setError(null);
-    onSave({ units: n, notes: notes || undefined, priority });
+    // `unitsNeeded` (not `units`) — the API client maps this to the
+    // backend's `unitsNeeded` field.
+    onSave({ unitsNeeded: n, notes: notes || undefined, priority });
   }
 
   return (

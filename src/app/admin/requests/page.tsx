@@ -186,11 +186,11 @@ export default function AdminRequestsPage() {
         ),
       },
       {
-        accessor: "units",
+        accessor: "unitsNeeded",
         header: "Units",
         cell: (row) => (
           <span className="text-sm font-medium text-foreground">
-            {row.units}
+            {row.unitsNeeded}
           </span>
         ),
       },
@@ -493,7 +493,7 @@ function FindMatchesDialog({
           </DialogTitle>
           <DialogDescription>
             {request
-              ? `${BLOOD_GROUP_LABELS[request.bloodGroup]} · ${request.units} unit${request.units === 1 ? "" : "s"} needed · ${request.location}`
+              ? `${BLOOD_GROUP_LABELS[request.bloodGroup]} · ${request.unitsNeeded} unit${request.unitsNeeded === 1 ? "" : "s"} needed · ${request.location}`
               : ""}
           </DialogDescription>
         </DialogHeader>

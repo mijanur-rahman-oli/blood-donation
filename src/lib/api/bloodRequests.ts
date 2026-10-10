@@ -66,27 +66,32 @@ function toQueryString(params: object): string {
 export interface CreateBloodRequestInput {
   patientName: string;
   bloodGroup: BloodGroup;
-  units: number;
-  priority: Priority;
+  /**
+   * Number of units requested. NOTE: the backend's field is
+   * `unitsNeeded`, not `units` (the wizard form's local field is still
+   * `units`; the create/edit pages map it to `unitsNeeded` at submit
+   * time).
+   */
+  unitsNeeded: number;
   hospitalName: string;
   location: string;
-  neededAt: string;
-  contactName: string;
+  priority: Priority;
   contactPhone: string;
   notes?: string;
+  /** Optional. The backend field is `neededBy`, not `neededAt`. */
+  neededBy?: string;
 }
 
 export interface UpdateBloodRequestInput {
   patientName?: string;
   bloodGroup?: BloodGroup;
-  units?: number;
-  priority?: Priority;
+  unitsNeeded?: number;
   hospitalName?: string;
   location?: string;
-  neededAt?: string;
-  contactName?: string;
+  priority?: Priority;
   contactPhone?: string;
   notes?: string;
+  neededBy?: string;
   status?: RequestStatus;
 }
 
@@ -96,7 +101,7 @@ export interface ListBloodRequestsParams {
   status?: RequestStatus;
   priority?: Priority;
   bloodGroup?: BloodGroup;
-  sortBy?: "createdAt" | "neededAt" | "priority";
+  sortBy?: "createdAt" | "neededBy" | "priority";
   sortOrder?: "asc" | "desc";
 }
 

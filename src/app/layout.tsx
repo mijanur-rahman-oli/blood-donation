@@ -99,8 +99,15 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="flex min-h-screen flex-col bg-background font-sans text-foreground">
+    <html
+      lang="en"
+      className={`${inter.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <body
+        className="flex min-h-screen flex-col bg-background font-sans text-foreground"
+        suppressHydrationWarning
+      >
         <Providers>
           <LayoutChrome>{children}</LayoutChrome>
           <BackToTop />

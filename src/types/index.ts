@@ -152,24 +152,41 @@ export interface DonorSearchResult {
 export interface BloodRequest {
   id: string;
   requesterId: string;
-  requester?: Pick<User, "id" | "name" | "email" | "phone">;
+  requester?: { id: string; name: string; email: string };
 
   patientName: string;
   bloodGroup: BloodGroup;
-  units: number;
+  /**
+   * Number of units requested. NOTE: the backend's field is
+   * `unitsNeeded`, not `units`. The wizard form keeps the form field
+   * named `units` and maps it to this property at submit time.
+   */
+  unitsNeeded: number;
   priority: Priority;
 
   hospitalName: string;
   location: string;
-  neededAt: string;
+  latitude: number | null;
+  longitude: number | null;
 
-  contactName: string;
+  /**
+   * Target date/time by which the blood is needed. Backend field is
+   * `neededBy` (not `neededAt`). Nullable — the backend may leave it
+   * `null` if the requester did not provide a value.
+   */
+  neededBy: string | null;
+
   contactPhone: string;
-  notes?: string | null;
+  notes: string | null;
 
   status: RequestStatus;
-  verifiedById?: string | null;
-  verifiedAt?: string | null;
+  verifiedById: string | null;
+  verifiedAt: string | null;
+  verifiedBy?: { id: string; name: string } | null;
+  assignments?: unknown[];
+
+  /** Soft-delete timestamp. `null` for active records. */
+  deletedAt: string | null;
 
   assignment?: DonationAssignment | null;
 

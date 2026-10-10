@@ -203,7 +203,7 @@ function RequestCard({ request }: { request: BloodRequest }) {
         </p>
         <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
           <DropletIcon size={12} />
-          {request.units} unit{request.units === 1 ? "" : "s"} needed
+          {request.unitsNeeded} unit{request.unitsNeeded === 1 ? "" : "s"} needed
         </p>
       </CardContent>
     </Card>

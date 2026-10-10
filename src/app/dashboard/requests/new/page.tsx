@@ -92,17 +92,22 @@ export default function NewRequestWizardPage() {
   async function onSubmit(values: BloodRequestWizardInput) {
     setSubmitting(true);
     try {
+      // Field map between the wizard's form state and the backend's
+      // create endpoint. Differences are noted inline.
       const created = await bloodRequestsApi.create({
         patientName: values.patientName,
         bloodGroup: values.bloodGroup,
-        units: values.units,
+        unitsNeeded: values.units, // form field `units` → API `unitsNeeded`
         priority: values.priority,
         hospitalName: values.hospitalName,
         location: values.location,
-        neededAt: values.neededAt,
-        contactName: values.contactName,
         contactPhone: values.contactPhone,
         notes: values.notes || undefined,
+        // `neededAt` and `contactName` are captured by the form for
+        // local UI state but the current backend create endpoint
+        // does not accept them — do not send them, or the request
+        // is rejected with 400. Once the backend grows those fields
+        // (or a "draft" endpoint) they can be added here.
       });
       toast.success(
         "Blood request created",
@@ -339,6 +344,12 @@ function Step3({ form }: { form: Form }) {
   const values = form.watch();
   return (
     <div className="space-y-4">
+      {/*
+        `contactName` is captured by the form for local UI state but
+        the current backend create endpoint does not accept it (see
+        onSubmit). It's kept here so the wizard can grow once the
+        backend adds the field.
+      */}
       <Field
         label="Contact name"
         registration={form.register("contactName")}
