@@ -1,12 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-/* ----------------------------------------------------------------------
-   PATCH /api/donors/availability  →  backend PATCH /donors/availability
-   ----------------------------------------------------------------------
-   Same pass-through pattern as the profile route. Reads the httpOnly
-   `accessToken` cookie and forwards the boolean payload to the
-   deployed backend.
-   ---------------------------------------------------------------------- */
+
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_API_URL ??

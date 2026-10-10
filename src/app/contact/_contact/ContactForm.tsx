@@ -9,12 +9,6 @@ import { cn } from "@/lib/utils";
 import { contactSchema, type ContactInput } from "@/lib/zod-schemas";
 import { toast } from "@/app/providers";
 
-/* ----------------------------------------------------------------------
-   ContactForm
-   ----------------------------------------------------------------------
-   RHF + Zod. No backend endpoint — the submit handler simulates a 300ms
-   network round trip, fires a success toast, and resets the form.
-   ---------------------------------------------------------------------- */
 
 export function ContactForm() {
   const [lastSubmittedSubject, setLastSubmittedSubject] = useState<string | null>(null);

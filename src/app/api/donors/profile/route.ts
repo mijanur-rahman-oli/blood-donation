@@ -1,18 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-/* ----------------------------------------------------------------------
-   GET /api/donors/profile  →  backend GET /donors/profile
-   POST /api/donors/profile →  backend POST /donors/profile
-   PATCH /api/donors/profile → backend PATCH /donors/profile
-   ----------------------------------------------------------------------
-   Pass-through proxy that resolves the CORS problem for the donor
-   profile mutations. The frontend axios instance cannot attach the
-   `accessToken` (httpOnly, set by /api/auth/login) when calling the
-   deployed backend directly, and the deployed backend may not allow
-   the `http://localhost:3000` origin. This route reads the httpOnly
-   `accessToken` cookie server-side and forwards the request to the
-   backend with the same body + an `Authorization: Bearer` header.
-   ---------------------------------------------------------------------- */
+
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_API_URL ??

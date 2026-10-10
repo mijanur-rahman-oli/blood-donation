@@ -3,16 +3,6 @@ import type { Metadata } from "next";
 import { ContactForm } from "./_contact/ContactForm";
 import { APP_URL } from "@/lib/constants";
 
-/* ----------------------------------------------------------------------
-   Contact (/contact)
-   ----------------------------------------------------------------------
-   Server component that exports `metadata` (App Router does not allow
-   `metadata` to be exported from a client component). The interactive
-   form is delegated to a child client component so we still get client
-   state, validation, and toast feedback without losing the per-page
-   metadata.
-   ---------------------------------------------------------------------- */
-
 export const metadata: Metadata = {
   title: "Contact",
   description:

@@ -2,13 +2,7 @@ import type { NextRequest } from "next/server";
 
 import { proxyToBackend } from "@/app/api/_proxy";
 
-/* ----------------------------------------------------------------------
-   POST /api/blood-requests/[id]/assign-donor
-   ----------------------------------------------------------------------
-   Admin assigns a specific donor to a verified request. Body shape
-   (forwarded verbatim):
-     { donorId: string }
-   ---------------------------------------------------------------------- */
+
 
 type RouteCtx = { params: Promise<{ id: string }> };
 

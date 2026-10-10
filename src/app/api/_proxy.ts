@@ -1,20 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-/* ----------------------------------------------------------------------
-   Shared backend proxy helper
-   ----------------------------------------------------------------------
-   Every /api/* route handler in this app forwards the request to the
-   upstream backend at ${NEXT_PUBLIC_API_URL}. The browser only ever
-   talks to the Next.js origin, so CORS is never in play.
-
-   The httpOnly `accessToken` cookie is set by the /api/auth/* handlers
-   and cannot be read by client JavaScript. We read it here, attach it
-   as `Authorization: Bearer …` to the upstream request, and forward
-   the rest of the request (method, body, query string) verbatim.
-
-   All 16 proxy route handlers in /api/* use this single helper so
-   auth + error semantics stay consistent.
-   ---------------------------------------------------------------------- */
 
 const ACCESS_COOKIE = "accessToken";
 

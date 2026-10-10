@@ -31,15 +31,7 @@ import {
   XIcon,
 } from "./icons";
 
-/* ----------------------------------------------------------------------
-   AdminSidebar + AdminTopbar
-   ----------------------------------------------------------------------
-   Two client components that drive the (admin) layout chrome. The
-   sidebar is rendered inside the layout, fixed on the left for desktop
-   and as a slide-down sheet on mobile. The topbar is shown on every
-   screen size and contains the mobile menu trigger, the page title
-   (derived from the pathname), and a user dropdown.
-   ---------------------------------------------------------------------- */
+
 
 interface NavItem {
   href: string;

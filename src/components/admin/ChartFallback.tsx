@@ -1,26 +1,9 @@
-/**
- * Tiny chart fallbacks.
- *
- * The admin dashboard spec calls for Recharts (LineChart + PieChart +
- * BarChart). Recharts is not in `package.json` yet, so these components
- * render the same data shape with hand-drawn SVG instead. The public
- * prop surface is the same as the Recharts components they replace, so
- * installing `recharts` later and swapping the imports does not touch
- * call sites.
- *
- * Components:
- *   - <LineChart data={...} dataKey xKey yKey height />
- *   - <PieChart data={...} nameKey valueKey colors height />
- *   - <BarChart data={...} dataKey nameKey height />   (horizontal bars)
- */
+
 
 import { useMemo } from "react";
 
 import { cn } from "@/lib/utils";
 
-/* ====================================================================
-   LineChart (SVG)
-   ==================================================================== */
 export interface LineChartDatum {
   [key: string]: string | number;
 }

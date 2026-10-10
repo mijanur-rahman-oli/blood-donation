@@ -1,12 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-/* ----------------------------------------------------------------------
-   POST /api/auth/login
-   ----------------------------------------------------------------------
-   Server-side proxy that calls the backend `/auth/login`, then sets
-   the `accessToken` and `refreshToken` cookies as httpOnly + Secure +
-   SameSite=Lax. Returns the unwrapped `{ user }` to the client.
-   ---------------------------------------------------------------------- */
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ??

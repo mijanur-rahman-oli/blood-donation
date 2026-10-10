@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-/* ----------------------------------------------------------------------
-   POST /api/auth/logout
-   ----------------------------------------------------------------------
-   Server-side logout. Calls the backend `/auth/logout` (best effort)
-   with the refresh token, then clears every auth-related cookie.
-   ---------------------------------------------------------------------- */
+
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ??
