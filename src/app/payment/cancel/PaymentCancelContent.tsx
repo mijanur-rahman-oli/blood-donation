@@ -9,15 +9,19 @@ import { truncate } from "@/lib/utils";
 /* ----------------------------------------------------------------------
    /payment/cancel — Client content
    ----------------------------------------------------------------------
-   Reads `?paymentId=` and optional `?bloodRequestId=`. The user is
-   shown a warning card plus "Try Again" (which routes back to the
-   originating request) and "Back to Dashboard".
+   The backend payment controller redirects here with `?tran_id=BDEP_xxx`
+   on cancel. We read BOTH `?paymentId=` (internal UUID, future-friendly)
+   and `?tran_id=` (gateway transactionId, what the backend actually
+   ships) and surface whichever the user can quote to support.
    ---------------------------------------------------------------------- */
 
 export default function PaymentCancelContent() {
   const searchParams = useSearchParams();
-  const paymentId = searchParams.get("paymentId");
-  const bloodRequestId = searchParams.get("bloodRequestId");
+  const paymentId = searchParams.get("paymentId")?.trim() || null;
+  const tranId =
+    (searchParams.get("tran_id") ?? searchParams.get("tranId"))?.trim() ||
+    null;
+  const bloodRequestId = searchParams.get("bloodRequestId")?.trim() || null;
 
   const retryHref = bloodRequestId
     ? `/dashboard/requests/${bloodRequestId}`
@@ -57,11 +61,21 @@ export default function PaymentCancelContent() {
             You can retry the payment from your request detail page. If you
             cancelled by mistake, no action is needed.
           </p>
-          {paymentId ? (
-            <p className="text-xs text-muted-foreground">
-              Reference:{" "}
-              <span className="font-mono">{truncate(paymentId, 16)}</span>
-            </p>
+          {paymentId || tranId ? (
+            <div className="space-y-1 text-xs text-muted-foreground">
+              {paymentId ? (
+                <p>
+                  Reference:{" "}
+                  <span className="font-mono">{truncate(paymentId, 16)}</span>
+                </p>
+              ) : null}
+              {tranId ? (
+                <p>
+                  Transaction:{" "}
+                  <span className="font-mono">{truncate(tranId, 24)}</span>
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </CardContent>
       </Card>

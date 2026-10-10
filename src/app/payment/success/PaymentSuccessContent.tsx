@@ -23,8 +23,14 @@ import type { Payment, PaymentStatus } from "@/types";
 /* ----------------------------------------------------------------------
    /payment/success — Payment success
    ----------------------------------------------------------------------
-   Reads `?paymentId=` from the URL. Polls the backend every 2 seconds
-   for up to 5 attempts to allow the IPN to reconcile, then stops.
+   Reads `?paymentId=` (preferred) OR `?tran_id=` / `?tranId=` (the
+   SSLCommerz redirect from the backend payment controller sends the
+   gateway's transactionId, e.g. `BDEP_xxx`, NOT our internal UUID).
+
+   When only a `tran_id` is present we list the user's recent payments
+   and find the matching one by `payment.transactionId`. We poll every
+   2 seconds for up to 5 attempts to allow the IPN to reconcile, then
+   stop.
    ---------------------------------------------------------------------- */
 
 const POLL_INTERVAL_MS = 2_000;
@@ -32,21 +38,44 @@ const MAX_POLLS = 5;
 
 export default function PaymentSuccessContent() {
   const searchParams = useSearchParams();
-  const rawId = searchParams.get("paymentId");
-  const paymentId = rawId?.trim() ? rawId.trim() : null;
+  const rawPaymentId = searchParams.get("paymentId");
+  const rawTranId =
+    searchParams.get("tran_id") ?? searchParams.get("tranId");
+  const paymentId = rawPaymentId?.trim() ? rawPaymentId.trim() : null;
+  const tranId = rawTranId?.trim() ? rawTranId.trim() : null;
 
   const [pollCount, setPollCount] = useState(0);
   const [copied, setCopied] = useState(false);
 
+  const queryKey: [string, string] = [
+    "payments",
+    paymentId ?? `tran:${tranId ?? "missing"}`,
+  ];
+
   const query = useQuery<Payment, Error>({
-    queryKey: ["payments", paymentId ?? "missing"],
-    queryFn: () => {
-      if (!paymentId) {
-        throw new Error("Payment ID missing");
+    queryKey,
+    queryFn: async () => {
+      if (paymentId) {
+        return paymentsApi.getById(paymentId);
       }
-      return paymentsApi.getById(paymentId);
+      if (tranId) {
+        // The backend's success callback only ships the gateway
+        // transactionId, not our internal UUID. List the most recent
+        // payments and find the one whose `transactionId` matches.
+        const page = await paymentsApi.list({ page: 1, limit: 50 });
+        const match = page.result.find(
+          (p) => p.transactionId === tranId,
+        );
+        if (!match) {
+          throw new Error(
+            "We couldn't find the payment for this transaction yet. The gateway may still be reconciling — we'll keep trying.",
+          );
+        }
+        return match;
+      }
+      throw new Error("Payment identifier missing");
     },
-    enabled: Boolean(paymentId),
+    enabled: Boolean(paymentId) || Boolean(tranId),
     refetchInterval: (q) => {
       const data = q.state.data;
       if (!data) return POLL_INTERVAL_MS;
@@ -65,10 +94,10 @@ export default function PaymentSuccessContent() {
     if (query.isSuccess) setPollCount((n) => n + 1);
   }, [query.isSuccess, query.dataUpdatedAt]);
 
-  if (!paymentId) {
+  if (!paymentId && !tranId) {
     return (
       <EmptyState
-        title="Payment ID missing"
+        title="Payment information missing"
         description="We could not find the payment you were trying to confirm."
         action={
           <Link
@@ -226,6 +255,13 @@ export default function PaymentSuccessContent() {
             ) : null}
           </Row>
           <Row label="Paid at">{formatDateTime(payment.paidAt)}</Row>
+          {payment.transactionId ? (
+            <Row label="Transaction">
+              <span className="font-mono text-xs text-muted-foreground">
+                {truncate(payment.transactionId, 20)}
+              </span>
+            </Row>
+          ) : null}
           {payment.bloodRequestId ? (
             <Row label="Blood request">
               <Link
