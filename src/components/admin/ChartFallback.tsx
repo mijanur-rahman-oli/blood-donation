@@ -1,15 +1,17 @@
 /**
  * Tiny chart fallbacks.
  *
- * The admin dashboard spec calls for Recharts (LineChart + PieChart).
- * Recharts is not in `package.json` yet, so these components render the
- * same data shape with hand-drawn SVG instead. The public prop surface
- * is the same as the Recharts components they replace, so installing
- * `recharts` later and swapping the imports does not touch call sites.
+ * The admin dashboard spec calls for Recharts (LineChart + PieChart +
+ * BarChart). Recharts is not in `package.json` yet, so these components
+ * render the same data shape with hand-drawn SVG instead. The public
+ * prop surface is the same as the Recharts components they replace, so
+ * installing `recharts` later and swapping the imports does not touch
+ * call sites.
  *
  * Components:
  *   - <LineChart data={...} dataKey xKey yKey height />
  *   - <PieChart data={...} nameKey valueKey colors height />
+ *   - <BarChart data={...} dataKey nameKey height />   (horizontal bars)
  */
 
 import { useMemo } from "react";
@@ -240,6 +242,127 @@ export function PieChart({ data, height = 220, className }: PieChartProps) {
           <li className="text-xs text-muted-foreground">No data</li>
         ) : null}
       </ul>
+    </div>
+  );
+}
+
+/* ====================================================================
+   BarChart (SVG, horizontal)
+   ====================================================================
+   Used by the admin dashboard to summarise headline counts side by
+   side. Public surface mirrors what a Recharts <BarChart layout="vertical"
+   /> would expose: data is an array of `{ name, value }` records and
+   the chart draws one bar per record.
+   ==================================================================== */
+export interface BarChartDatum {
+  name: string;
+  value: number;
+}
+
+export interface BarChartProps {
+  data: BarChartDatum[];
+  height?: number;
+  className?: string;
+  /** Optional explicit color for every bar. */
+  color?: string;
+  /** Bar value formatter (default: locale string). */
+  formatValue?: (value: number) => string;
+}
+
+export function BarChart({
+  data,
+  height = 220,
+  className,
+  color = "hsl(var(--primary))",
+  formatValue,
+}: BarChartProps) {
+  const rows = useMemo(() => {
+    if (data.length === 0) return [] as Array<BarChartDatum & { pct: number }>;
+    const max = Math.max(1, ...data.map((d) => d.value));
+    return data.map((d) => ({ ...d, pct: d.value / max }));
+  }, [data]);
+
+  if (rows.length === 0) {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-center text-sm text-muted-foreground",
+          className,
+        )}
+        style={{ height }}
+        role="img"
+        aria-label="Bar chart"
+      >
+        No data
+      </div>
+    );
+  }
+
+  const labelWidth = 88;
+  const valueWidth = 60;
+  const trackWidth = 320;
+  const totalWidth = labelWidth + trackWidth + valueWidth + 8;
+  const rowHeight = Math.max(20, Math.floor(height / Math.max(1, rows.length)));
+  const totalHeight = rowHeight * rows.length;
+  const trackHeight = Math.max(8, rowHeight - 12);
+
+  return (
+    <div className={cn("w-full overflow-hidden", className)}>
+      <svg
+        viewBox={`0 0 ${totalWidth} ${totalHeight}`}
+        width="100%"
+        height={totalHeight}
+        role="img"
+        aria-label="Bar chart"
+      >
+        {rows.map((row, i) => {
+          const y = i * rowHeight;
+          const textY = y + rowHeight / 2;
+          const barX = labelWidth;
+          const barW = Math.max(2, trackWidth * row.pct);
+          const barY = y + (rowHeight - trackHeight) / 2;
+          const valueX = labelWidth + trackWidth + 8;
+          return (
+            <g key={row.name}>
+              <text
+                x={labelWidth - 8}
+                y={textY}
+                fontSize="11"
+                textAnchor="end"
+                dominantBaseline="middle"
+                fill="hsl(var(--muted-foreground))"
+              >
+                {row.name}
+              </text>
+              <rect
+                x={barX}
+                y={barY}
+                width={trackWidth}
+                height={trackHeight}
+                rx={3}
+                fill="hsl(var(--muted))"
+              />
+              <rect
+                x={barX}
+                y={barY}
+                width={barW}
+                height={trackHeight}
+                rx={3}
+                fill={color}
+              />
+              <text
+                x={valueX}
+                y={textY}
+                fontSize="11"
+                dominantBaseline="middle"
+                fill="hsl(var(--foreground))"
+              >
+                {formatValue ? formatValue(row.value) : row.value.toLocaleString()}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }

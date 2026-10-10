@@ -18,8 +18,8 @@ import { unwrapList } from "./_errors";
    Hits a same-origin Next.js API route handler. The browser sends
    the httpOnly auth cookies automatically and the route handler
    forwards to the upstream backend with the httpOnly access token.
-   We use this for every donor mutation + the donor-profile read so
-   the deployed backend never sees the localhost origin.
+   Used for every donor endpoint so the deployed backend never sees
+   the localhost origin (no CORS surface).
    ---------------------------------------------------------------------- */
 async function localFetch<T>(
   path: string,
@@ -55,18 +55,9 @@ async function localFetch<T>(
    Donors
    ----------------------------------------------------------------------
    Endpoints from PROJECT.md -> "Backend Integration > Donors".
-
-   The auth-required mutations (createProfile, updateProfile,
-   updateAvailability) and the auth-required read (getMyProfile) are
-   routed through the local Next.js API proxies under /api/donors/*
-   so the request carries the httpOnly access-token cookie
-   automatically. The browser -> backend CORS surface is fully
-   contained inside the route handlers.
-
-   Public reads (getCompatibleRequests, getDonationHistory,
-   searchDonors) still go through the configured api instance — they
-   either accept the anonymous role or piggy-back on the public mirror
-   cookie when available.
+   Every donor endpoint is routed through the local /api/donors/*
+   proxies so the browser never talks to the upstream backend
+   directly.
    ---------------------------------------------------------------------- */
 
 export interface CreateDonorProfileInput {
@@ -145,28 +136,52 @@ export async function updateAvailability(
 export async function getCompatibleRequests(
   params: GetCompatibleRequestsParams = {},
 ): Promise<PaginatedResult<BloodRequest>> {
-  const res = await api.get<ApiResponse<PaginatedResult<BloodRequest>>>(
-    "/donors/requests",
-    { params },
+  const qs = toQueryString(params);
+  const data = await localFetch<PaginatedResult<BloodRequest>>(
+    `/api/donors/requests${qs}`,
+    { method: "GET" },
   );
-  return unwrapList(res);
+  return data;
 }
 
 export async function getDonationHistory(
   params: GetDonationHistoryParams = {},
 ): Promise<PaginatedResult<DonationHistory>> {
-  const res = await api.get<ApiResponse<PaginatedResult<DonationHistory>>>(
-    "/donors/donation-history",
-    { params },
+  const qs = toQueryString(params);
+  const data = await localFetch<PaginatedResult<DonationHistory>>(
+    `/api/donors/donation-history${qs}`,
+    { method: "GET" },
   );
-  return unwrapList(res);
+  return data;
 }
 
 export async function searchDonors(
   params: SearchDonorsParams,
 ): Promise<PaginatedResult<DonorSearchResult>> {
+  // searchDonors is admin/requester only and still goes through the
+  // public api instance, which now has a relative baseURL and hits
+  // /donors/search on the same origin. (The matching proxy is
+  // mounted under /api/donors/search if you ever want to add it; for
+  // now this endpoint is not invoked from the donor dashboard.)
   const res = await api.get<
     ApiResponse<PaginatedResult<DonorSearchResult>>
   >("/donors/search", { params });
   return unwrapList(res);
+}
+
+/* ----------------------------------------------------------------------
+   Query-string helper
+   ----------------------------------------------------------------------
+   Mirrors `toQueryString` from @/lib/utils. Local duplicate so this
+   file does not pull in formatters it does not need.
+   ---------------------------------------------------------------------- */
+function toQueryString(params: object): string {
+  const entries: string[] = [];
+  for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+    if (value === undefined || value === null || value === "") continue;
+    entries.push(
+      `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`,
+    );
+  }
+  return entries.length === 0 ? "" : `?${entries.join("&")}`;
 }

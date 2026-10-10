@@ -261,6 +261,13 @@ export interface AuditLog {
 
 /* ----------------------------------------------------------------------
    Admin dashboard stats
+   ----------------------------------------------------------------------
+   Shape returned by `GET /admin/dashboard-stats`. The backend ships
+   a flat record of headline counts and a `generatedAt` timestamp; it
+   does NOT return any of the breakdown objects or recent lists that
+   the previous spec assumed. Those data are still available via
+   dedicated endpoints (see recentRequests / recentActivity in the
+   admin page) and should be fetched with separate queries.
    ---------------------------------------------------------------------- */
 
 export type RequestStatusBreakdown = Record<RequestStatus, number>;
@@ -272,16 +279,10 @@ export interface AdminDashboardStats {
   totalDonors: number;
   totalRequesters: number;
   totalBloodRequests: number;
-  totalCompletedDonations: number;
+  pendingRequests: number;
+  completedRequests: number;
+  totalDonations: number;
+  totalPayments: number;
   totalRevenue: number;
-
-  requestsByStatus: RequestStatusBreakdown;
-  usersByRole: RoleBreakdown;
-  donorsByBloodGroup: BloodGroupBreakdown;
-  recentDonations: DonationHistory[];
-  recentRequests: BloodRequest[];
-
-  /** Optional chart-ready timeseries (backend may return 12 monthly buckets). */
-  monthlyRequests?: Array<{ month: string; count: number }>;
-  monthlyDonations?: Array<{ month: string; count: number }>;
+  generatedAt: string;
 }

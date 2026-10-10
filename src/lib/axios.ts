@@ -4,26 +4,49 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 
-/**
- * API base URL.
- *
- * Sourced from `NEXT_PUBLIC_API_URL` (see `.env.local.example`). The variable
- * is inlined at build time by Next.js, so it is safe to read at module scope.
- */
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ??
-  "https://blood-donation-server-weld-psi.vercel.app/api/v1";
+/* ======================================================================
+   Axios — browser-side HTTP clients
+   ----------------------------------------------------------------------
+   Two instances are exported:
+
+   - `api`            — the primary client used by every API module
+                        in the browser. baseURL is RELATIVE (empty
+                        string) so every call resolves against the
+                        current origin (http://localhost:3000 in dev,
+                        the Vercel URL in production). The browser
+                        never talks to the upstream backend directly,
+                        so CORS is never in play — every request is
+                        handled by a Next.js route handler under
+                        /api/* which forwards to the backend using
+                        the httpOnly access-token cookie.
+
+   - `publicAxios`    — kept for SERVER-SIDE use (e.g. /api/auth/login
+                        and friends, which are invoked from Route
+                        Handlers running on Node and need an absolute
+                        backend URL). It still talks to the backend
+                        directly. The browser never imports it.
+
+   The 401-refresh interceptor on `api` no longer calls
+   publicAxios.post("/auth/refresh-token", ...) directly — that would
+   hit the backend from the browser and CORS would block it. It now
+   calls the same-origin /api/auth/refresh route handler, which
+   forwards to the backend and returns the rotated tokens.
+
+   `withCredentials: true` is set on `api` so the httpOnly cookies
+   are included in the same-origin XHR.
+   ====================================================================== */
 
 /* ----------------------------------------------------------------------
    Cookie helpers
    ----------------------------------------------------------------------
-   The frontend keeps `accessToken` / `refreshToken` in **httpOnly** cookies
-   set by the `/api/auth/*` Next.js route handlers. The browser sends them
-   automatically, so client-side `axios` cannot read them. For client-side
-   request-attachment (the `Authorization: Bearer` header requested in
-   PROJECT.md), we mirror the access token in a non-httpOnly mirror cookie
-   named `accessTokenClient` set by the auth route handlers. The mirrors are
-   safe to read from JavaScript and are cleared on logout.
+   The frontend keeps `accessToken` / `refreshToken` in **httpOnly**
+   cookies set by the /api/auth/* Next.js route handlers. The browser
+   sends them automatically, so client-side `axios` cannot read them.
+   For client-side request-attachment (the `Authorization: Bearer`
+   header requested in PROJECT.md), we mirror the access token in a
+   non-httpOnly mirror cookie named `accessTokenClient` set by the
+   auth route handlers. The mirrors are safe to read from JavaScript
+   and are cleared on logout.
    ---------------------------------------------------------------------- */
 const CLIENT_ACCESS_COOKIE = "accessTokenClient";
 const CLIENT_REFRESH_COOKIE = "refreshTokenClient";
@@ -55,18 +78,25 @@ function clearClientAuthCookies(): void {
    Public + private axios instances
    ---------------------------------------------------------------------- */
 
-/** Used for refresh calls and any endpoint that must not recurse through
- *  the auth interceptor. */
+/** Upstream backend base URL. Used by the SERVER-SIDE `publicAxios`
+ *  and by the /api/auth/* and /api/donors/* proxy helpers — never by
+ *  browser code. */
+export const BACKEND_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  "https://blood-donation-server-weld-psi.vercel.app/api/v1";
+
+/** Server-side only. Imported by /api/auth/* route handlers. */
 export const publicAxios = axios.create({
-  baseURL: BASE_URL,
+  baseURL: BACKEND_BASE_URL,
   timeout: 20_000,
   headers: { "Content-Type": "application/json" },
-  withCredentials: true,
 });
 
-/** Primary client used by every API module. */
+/** Primary client used by every API module in the browser.
+ *  Empty baseURL → every request resolves against the current origin
+ *  (Next.js), which forwards to the backend via the /api/* proxies. */
 export const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: "",
   timeout: 20_000,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
@@ -74,6 +104,10 @@ export const api = axios.create({
 
 /* ----------------------------------------------------------------------
    Request interceptor — attach Bearer token
+   ----------------------------------------------------------------------
+   The token is read from the client-readable mirror cookie set by the
+   /api/auth/* route handlers. The route handlers themselves read the
+   httpOnly `accessToken` cookie to authenticate against the backend.
    ---------------------------------------------------------------------- */
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = readCookie(CLIENT_ACCESS_COOKIE);
@@ -85,13 +119,22 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
 /* ----------------------------------------------------------------------
    Response interceptor — silent refresh on 401, single retry, then logout
+   ----------------------------------------------------------------------
+   The refresh flow goes through the same-origin /api/auth/refresh
+   route handler. We do NOT call the upstream backend directly here —
+   that would CORS-block the browser.
    ---------------------------------------------------------------------- */
 type RetryConfig = AxiosRequestConfig & { _retry?: boolean };
+
+interface RefreshResponse {
+  success: boolean;
+  message?: string;
+  data?: { accessToken?: string; refreshToken?: string };
+}
 
 let refreshInFlight: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {
-  // Coalesce concurrent 401s into a single refresh call.
   if (refreshInFlight) return refreshInFlight;
 
   const refreshToken = readCookie(CLIENT_REFRESH_COOKIE);
@@ -99,28 +142,31 @@ async function refreshAccessToken(): Promise<string | null> {
 
   refreshInFlight = (async () => {
     try {
-      const res = await publicAxios.post<{
-        success: boolean;
-        data?: { accessToken: string; refreshToken?: string };
-      }>("/auth/refresh-token", { refreshToken });
+      // Hit the same-origin proxy. The /api/auth/refresh route handler
+      // forwards to the upstream /auth/refresh-token and sets the
+      // rotated httpOnly cookies + the client-mirror cookies.
+      const res = await api.post<RefreshResponse>("/api/auth/refresh", {
+        refreshToken,
+      });
 
-      const payload = res.data?.data;
-      const newAccess = payload?.accessToken;
-      const newRefresh = payload?.refreshToken ?? refreshToken;
+      const newAccess = res.data?.data?.accessToken ?? null;
+      const newRefresh = res.data?.data?.refreshToken ?? refreshToken;
 
       if (!newAccess) return null;
 
-      // Mirror new tokens back to client-readable cookies via the auth route.
-      // We use the publicAxios here so the response interceptor does not
-      // recurse if the proxy itself returns 401.
+      // Keep the client-readable mirrors in sync with the httpOnly
+      // cookies the route handler just set. This is the same
+      // observation the response interceptor uses on subsequent calls.
       try {
-        await publicAxios.post("/auth/refresh", {
-          accessToken: newAccess,
-          refreshToken: newRefresh,
-        });
+        document.cookie = `${CLIENT_ACCESS_COOKIE}=${encodeURIComponent(
+          newAccess,
+        )}; Path=/; SameSite=Lax; Max-Age=900`;
+        document.cookie = `${CLIENT_REFRESH_COOKIE}=${encodeURIComponent(
+          newRefresh,
+        )}; Path=/; SameSite=Lax; Max-Age=2592000`;
       } catch {
-        // Non-fatal: the public mirror is best-effort. The httpOnly cookies
-        // are still rotated by the backend.
+        // Non-fatal: the mirrors are best-effort; the httpOnly
+        // cookies are still authoritative.
       }
 
       return newAccess;
@@ -141,7 +187,8 @@ function isAuthEndpoint(url: string | undefined): boolean {
     url.includes("/auth/register") ||
     url.includes("/auth/google") ||
     url.includes("/auth/refresh-token") ||
-    url.includes("/auth/logout")
+    url.includes("/auth/logout") ||
+    url.includes("/api/auth/")
   );
 }
 
@@ -196,7 +243,10 @@ export interface ApiErrorPayload {
   errors?: Array<{ path: string; message: string }>;
 }
 
-export function extractApiError(error: unknown, fallback = "Something went wrong"): string {
+export function extractApiError(
+  error: unknown,
+  fallback = "Something went wrong",
+): string {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as Partial<ApiErrorPayload> | undefined;
     if (data?.message) return data.message;

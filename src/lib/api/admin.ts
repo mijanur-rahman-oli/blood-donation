@@ -1,7 +1,5 @@
-import { api } from "@/lib/axios";
 import type {
   AdminDashboardStats,
-  ApiResponse,
   AuditLog,
   BloodRequest,
   PaginatedResult,
@@ -10,12 +8,57 @@ import type {
   UserStatus,
 } from "@/types";
 
-import { unwrapData, unwrapList } from "./_errors";
+/* ----------------------------------------------------------------------
+   localFetch — see donors.ts for the full rationale. Every call hits
+   a same-origin /api/* route handler; the browser never talks to the
+   upstream backend directly.
+   ---------------------------------------------------------------------- */
+async function localFetch<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const res = await fetch(path, {
+    ...init,
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...(init.headers ?? {}),
+    },
+  });
+  const json = (await res.json().catch(() => null)) as
+    | { success: true; data: T }
+    | { success: false; message: string }
+    | { message: string }
+    | null;
+  if (!res.ok || !json || (json as { success?: boolean }).success !== true) {
+    const message =
+      json && (json as { message?: string }).message
+        ? (json as { message: string }).message
+        : `Request to ${path} failed with ${res.status}`;
+    const err = new Error(message) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  return (json as { success: true; data: T }).data;
+}
+
+function toQueryString(params: object): string {
+  const entries: string[] = [];
+  for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+    if (value === undefined || value === null || value === "") continue;
+    entries.push(
+      `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`,
+    );
+  }
+  return entries.length === 0 ? "" : `?${entries.join("&")}`;
+}
 
 /* ----------------------------------------------------------------------
    Admin
    ----------------------------------------------------------------------
    Endpoints from PROJECT.md -> "Backend Integration > Admin".
+   Every admin endpoint is gated by the proxy at the same origin.
    ---------------------------------------------------------------------- */
 
 export interface ListAdminUsersParams {
@@ -56,58 +99,61 @@ export interface UpdateUserStatusInput {
 export async function listUsers(
   params: ListAdminUsersParams = {},
 ): Promise<PaginatedResult<User>> {
-  const res = await api.get<ApiResponse<PaginatedResult<User>>>(
-    "/admin/users",
-    { params },
+  const qs = toQueryString(params as Record<string, unknown>);
+  return localFetch<PaginatedResult<User>>(
+    `/api/admin/users${qs}`,
+    { method: "GET" },
   );
-  return unwrapList(res);
 }
 
 export async function updateUserRole(
   id: string,
   payload: UpdateUserRoleInput,
 ): Promise<User> {
-  const res = await api.patch<ApiResponse<User>>(
-    `/admin/users/${id}/role`,
-    payload,
+  return localFetch<User>(
+    `/api/admin/users/${encodeURIComponent(id)}/role`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
   );
-  return unwrapData(res);
 }
 
 export async function updateUserStatus(
   id: string,
   payload: UpdateUserStatusInput,
 ): Promise<User> {
-  const res = await api.patch<ApiResponse<User>>(
-    `/admin/users/${id}/status`,
-    payload,
+  return localFetch<User>(
+    `/api/admin/users/${encodeURIComponent(id)}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
   );
-  return unwrapData(res);
 }
 
 export async function getDashboardStats(): Promise<AdminDashboardStats> {
-  const res = await api.get<ApiResponse<AdminDashboardStats>>(
-    "/admin/dashboard-stats",
-  );
-  return unwrapData(res);
+  return localFetch<AdminDashboardStats>("/api/admin/dashboard-stats", {
+    method: "GET",
+  });
 }
 
 export async function listAuditLogs(
   params: ListAuditLogsParams = {},
 ): Promise<PaginatedResult<AuditLog>> {
-  const res = await api.get<ApiResponse<PaginatedResult<AuditLog>>>(
-    "/admin/audit-logs",
-    { params },
+  const qs = toQueryString(params as Record<string, unknown>);
+  return localFetch<PaginatedResult<AuditLog>>(
+    `/api/admin/audit-logs${qs}`,
+    { method: "GET" },
   );
-  return unwrapList(res);
 }
 
 export async function listAllBloodRequests(
   params: ListAdminBloodRequestsParams = {},
 ): Promise<PaginatedResult<BloodRequest>> {
-  const res = await api.get<ApiResponse<PaginatedResult<BloodRequest>>>(
-    "/admin/blood-requests",
-    { params },
+  const qs = toQueryString(params as Record<string, unknown>);
+  return localFetch<PaginatedResult<BloodRequest>>(
+    `/api/admin/blood-requests${qs}`,
+    { method: "GET" },
   );
-  return unwrapList(res);
 }

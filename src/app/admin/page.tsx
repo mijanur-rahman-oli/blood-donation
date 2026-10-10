@@ -1,10 +1,24 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Skeleton } from "@/components/admin/primitives";
-import { LineChart, PieChart, type PieChartDatum } from "@/components/admin/ChartFallback";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Badge,
+  Skeleton,
+} from "@/components/admin/primitives";
+import {
+  BarChart,
+  PieChart,
+  type BarChartDatum,
+  type PieChartDatum,
+} from "@/components/admin/ChartFallback";
 import {
   DollarSignIcon,
   DropletIcon,
@@ -18,7 +32,7 @@ import { PageContainer } from "@/components/shared/PageContainer";
 import { PageHeader } from "@/components/shared/PageHeader";
 import * as adminApi from "@/lib/api/admin";
 import * as bloodRequestsApi from "@/lib/api/bloodRequests";
-import { BLOOD_GROUP_LABELS, PRIORITY_LABELS } from "@/lib/constants";
+import { BLOOD_GROUPS, BLOOD_GROUP_LABELS, PRIORITY_LABELS } from "@/lib/constants";
 import { formatDateTime, formatCurrency } from "@/lib/utils";
 import type {
   AdminDashboardStats,
@@ -32,13 +46,26 @@ import type {
 /* ----------------------------------------------------------------------
    /admin — Dashboard
    ----------------------------------------------------------------------
-   Client component. Four TanStack Query keys:
+   Client component. Three TanStack Query keys:
      - ["admin", "stats"]                          2 min stale
      - ["admin", "blood-requests", "recent"]       30s stale
      - ["admin", "audit-logs", "recent"]           30s stale
-   Renders 4 StatCards, a line chart, a pie chart, a recent-requests
-   list, and a recent-activity list. Handles the 4 mandatory states
-   (loading / empty / error / success) per list.
+
+   The backend dashboard-stats endpoint returns a flat record of
+   headline counts (totalUsers, pendingRequests, totalDonations,
+   totalRevenue, etc.). The four StatCards reflect those counts.
+
+   The two charts no longer rely on `requestsByStatus`,
+   `usersByRole`, or `donorsByBloodGroup` from the stats payload
+   (those keys are not returned by the backend). Instead:
+     - BarChart summarises the four headline counts so the
+       dashboard has a clear visual at-a-glance.
+     - PieChart shows the blood-group distribution of the
+       most recent requests (derived from the recent-requests
+       query, which is fetched separately).
+
+   All numeric fields read from `stats.data` use the `?? 0`
+   fallback so a missing field never crashes the page.
    ---------------------------------------------------------------------- */
 
 const RECENT_LIMIT = 5;
@@ -67,6 +94,43 @@ export default function AdminDashboardPage() {
     queryFn: () => adminApi.listAuditLogs({ page: 1, limit: RECENT_LIMIT }),
     staleTime: 30_000,
   });
+
+  // Derived: blood-group distribution of the recent-requests list.
+  // Used to drive the pie chart without needing a dedicated endpoint.
+  const bloodGroupPieData = useMemo<PieChartDatum[]>(() => {
+    const counts: Record<BloodGroup, number> = {
+      A_POSITIVE: 0,
+      A_NEGATIVE: 0,
+      B_POSITIVE: 0,
+      B_NEGATIVE: 0,
+      AB_POSITIVE: 0,
+      AB_NEGATIVE: 0,
+      O_POSITIVE: 0,
+      O_NEGATIVE: 0,
+    };
+    for (const req of recentRequests.data?.result ?? []) {
+      const bg = req.bloodGroup;
+      if (bg in counts) counts[bg] += 1;
+    }
+    // Always render all 8 buckets so the chart shape stays stable
+    // even when the recent list is empty.
+    return BLOOD_GROUPS.map((group) => ({
+      name: BLOOD_GROUP_LABELS[group],
+      value: counts[group],
+    }));
+  }, [recentRequests.data]);
+
+  // Derived: headline counts for the BarChart. Always uses the
+  // current query data and the `?? 0` fallback.
+  const overviewBars = useMemo<BarChartDatum[]>(() => {
+    const d = stats.data;
+    return [
+      { name: "Users", value: d?.totalUsers ?? 0 },
+      { name: "Requests", value: d?.totalBloodRequests ?? 0 },
+      { name: "Donations", value: d?.totalDonations ?? 0 },
+      { name: "Payments", value: d?.totalPayments ?? 0 },
+    ];
+  }, [stats.data]);
 
   if (stats.isError) {
     return (
@@ -113,32 +177,29 @@ export default function AdminDashboardPage() {
             <StatCard
               icon={<UsersIcon size={18} />}
               label="Total Users"
-              value={stats.data.totalUsers.toLocaleString()}
-              description={`${stats.data.totalDonors} donors · ${stats.data.totalRequesters} requesters`}
+              value={(stats.data.totalUsers ?? 0).toLocaleString()}
+              description={`${stats.data.totalDonors ?? 0} donors · ${stats.data.totalRequesters ?? 0} requesters`}
               tone="info"
             />
             <StatCard
               icon={<DropletIcon size={18} />}
-              label="Active Requests"
-              value={(stats.data.requestsByStatus.PENDING +
-                stats.data.requestsByStatus.VERIFIED +
-                stats.data.requestsByStatus.MATCHING +
-                stats.data.requestsByStatus.ASSIGNED).toLocaleString()}
-              description="PENDING + VERIFIED + MATCHING + ASSIGNED"
+              label="Pending Requests"
+              value={(stats.data.pendingRequests ?? 0).toLocaleString()}
+              description={`${stats.data.totalBloodRequests ?? 0} total · ${stats.data.completedRequests ?? 0} completed`}
               tone="primary"
             />
             <StatCard
               icon={<HeartIcon size={18} />}
               label="Completed Donations"
-              value={stats.data.totalCompletedDonations.toLocaleString()}
-              description="Lifetime"
+              value={(stats.data.totalDonations ?? 0).toLocaleString()}
+              description="Lifetime donations"
               tone="success"
             />
             <StatCard
               icon={<DollarSignIcon size={18} />}
               label="Total Revenue"
-              value={formatCurrency(stats.data.totalRevenue)}
-              description="From verification fees"
+              value={formatCurrency(stats.data.totalRevenue ?? 0)}
+              description={`${stats.data.totalPayments ?? 0} payments`}
               tone="default"
             />
           </>
@@ -149,33 +210,31 @@ export default function AdminDashboardPage() {
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Requests over last 30 days</CardTitle>
-            <CardDescription>Daily volume of new blood requests</CardDescription>
+            <CardTitle>Platform overview</CardTitle>
+            <CardDescription>
+              Headline counts from the latest stats snapshot
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {stats.isLoading || !stats.data ? (
               <Skeleton className="h-56 w-full" />
             ) : (
-              <LineChart
-                data={buildDailySeries(stats.data)}
-                xKey="day"
-                dataKey="count"
-                height={240}
-                yLabel="Requests"
-              />
+              <BarChart data={overviewBars} height={200} />
             )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Blood group distribution</CardTitle>
-            <CardDescription>Donors per ABO + Rh group</CardDescription>
+            <CardTitle>Recent requests by blood group</CardTitle>
+            <CardDescription>
+              Distribution across the {RECENT_LIMIT} most recent requests
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {stats.isLoading || !stats.data ? (
+            {recentRequests.isLoading ? (
               <Skeleton className="h-56 w-full" />
             ) : (
-              <PieChart data={buildPieData(stats.data.donorsByBloodGroup)} height={240} />
+              <PieChart data={bloodGroupPieData} height={200} />
             )}
           </CardContent>
         </Card>
@@ -326,39 +385,4 @@ export default function AdminDashboardPage() {
       </section>
     </PageContainer>
   );
-}
-
-/* ----------------------------------------------------------------------
-   Helpers
-   ---------------------------------------------------------------------- */
-function buildDailySeries(stats: AdminDashboardStats): Array<{ day: string; count: number }> {
-  // Prefer the optional `monthlyRequests` timeseries. If absent, fall
-  // back to a flat 30-day stub seeded from totalBloodRequests so the
-  // chart always renders something sensible.
-  if (stats.monthlyRequests && stats.monthlyRequests.length > 0) {
-    return stats.monthlyRequests.map((m) => ({ day: m.month, count: m.count }));
-  }
-  const total = stats.totalBloodRequests;
-  const seed = total > 0 ? Math.max(1, Math.round(total / 30)) : 0;
-  return Array.from({ length: 30 }, (_, i) => ({
-    day: `D${i + 1}`,
-    count: seed,
-  }));
-}
-
-function buildPieData(breakdown: AdminDashboardStats["donorsByBloodGroup"]): PieChartDatum[] {
-  const groups: BloodGroup[] = [
-    "A_POSITIVE",
-    "A_NEGATIVE",
-    "B_POSITIVE",
-    "B_NEGATIVE",
-    "AB_POSITIVE",
-    "AB_NEGATIVE",
-    "O_POSITIVE",
-    "O_NEGATIVE",
-  ];
-  return groups.map((group) => ({
-    name: BLOOD_GROUP_LABELS[group],
-    value: breakdown?.[group] ?? 0,
-  }));
 }

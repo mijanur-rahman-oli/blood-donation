@@ -1,4 +1,4 @@
-import { api } from "@/lib/axios";
+import { publicAxios } from "@/lib/axios";
 import type { ApiResponse, User } from "@/types";
 
 import { unwrapData } from "./_errors";
@@ -7,10 +7,12 @@ import { unwrapData } from "./_errors";
    Auth
    ----------------------------------------------------------------------
    Endpoints from PROJECT.md -> "Backend Integration > Auth".
-   These hit the backend directly (no /api/auth proxy), so the route
-   handlers in /app/api/auth/* are responsible for setting the httpOnly
-   cookies. The API modules in this file are the typed wrappers used by
-   the auth route handlers and (for refresh) by the axios interceptor.
+   These talk to the upstream backend directly and are intended to be
+   imported from SERVER-SIDE code only (the /api/auth/* route
+   handlers). They use `publicAxios`, which has an absolute
+   `BACKEND_BASE_URL` and is safe from the Node runtime. Do NOT call
+   these from client components — the browser would CORS-block the
+   request.
    ---------------------------------------------------------------------- */
 
 export interface AuthResult {
@@ -47,26 +49,35 @@ export interface LogoutInput {
 }
 
 export async function login(payload: LoginInput): Promise<AuthResult> {
-  const res = await api.post<ApiResponse<AuthResult>>("/auth/login", payload);
+  const res = await publicAxios.post<ApiResponse<AuthResult>>(
+    "/auth/login",
+    payload,
+  );
   return unwrapData(res);
 }
 
 export async function register(payload: RegisterInput): Promise<AuthResult> {
-  const res = await api.post<ApiResponse<AuthResult>>("/auth/register", payload);
+  const res = await publicAxios.post<ApiResponse<AuthResult>>(
+    "/auth/register",
+    payload,
+  );
   return unwrapData(res);
 }
 
 export async function googleLogin(
   payload: GoogleLoginInput,
 ): Promise<AuthResult> {
-  const res = await api.post<ApiResponse<AuthResult>>("/auth/google", payload);
+  const res = await publicAxios.post<ApiResponse<AuthResult>>(
+    "/auth/google",
+    payload,
+  );
   return unwrapData(res);
 }
 
 export async function refresh(
   payload: { refreshToken: string },
 ): Promise<RefreshResult> {
-  const res = await api.post<ApiResponse<RefreshResult>>(
+  const res = await publicAxios.post<ApiResponse<RefreshResult>>(
     "/auth/refresh-token",
     payload,
   );
@@ -74,6 +85,9 @@ export async function refresh(
 }
 
 export async function logout(payload: LogoutInput): Promise<null> {
-  const res = await api.post<ApiResponse<null>>("/auth/logout", payload);
+  const res = await publicAxios.post<ApiResponse<null>>(
+    "/auth/logout",
+    payload,
+  );
   return unwrapData(res);
 }
