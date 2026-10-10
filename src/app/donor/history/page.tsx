@@ -25,11 +25,7 @@ import { formatDateTime, formatRelativeTime } from "@/lib/utils";
 import { DropletIcon } from "@/components/donor/icons";
 import type { BloodGroup, DonationHistory, PaginatedResult } from "@/types";
 
-/* ----------------------------------------------------------------------
-   /donor/history — Donation history
-   ----------------------------------------------------------------------
-   URL-synced ?page&limit. Three mini stats + a DataTable.
-   ---------------------------------------------------------------------- */
+
 
 export default function DonorHistoryPage() {
   const { searchParams } = useUpdateSearchParams();

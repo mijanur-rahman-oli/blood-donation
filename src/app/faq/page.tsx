@@ -4,21 +4,6 @@ import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-// Per-page metadata is exported from `src/app/faq/layout.tsx` (a sibling
-// server component) because `page.tsx` is a client component and the App
-// Router does not allow `metadata` to be exported from a client module.
-
-/* ----------------------------------------------------------------------
-   FAQ (/faq)
-   ----------------------------------------------------------------------
-   Client component (the accordion uses `useState`). 12 real FAQs
-   covering donation eligibility, blood compatibility, the request
-   process, payment, and privacy. The accordion is dependency-free —
-   built with native <button> + Tailwind so it works without the
-   shadcn Accordion primitive. When `npx shadcn@latest add accordion`
-   is run, swap the inner markup without touching the data or
-   category filter.
-   ---------------------------------------------------------------------- */
 
 interface FaqItem {
   category: "Eligibility" | "Compatibility" | "Request" | "Payment" | "Privacy";

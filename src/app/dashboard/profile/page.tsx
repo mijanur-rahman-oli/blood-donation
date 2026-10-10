@@ -27,12 +27,7 @@ import { formatDate, formatDateTime } from "@/lib/utils";
 import { CalendarIcon } from "@/components/dashboard/icons";
 import { toast } from "@/app/providers";
 
-/* ----------------------------------------------------------------------
-   /dashboard/profile
-   ----------------------------------------------------------------------
-   RHF + Zod. Two-column layout: editable form on the left, account info
-   card on the right.
-   ---------------------------------------------------------------------- */
+
 
 export default function ProfilePage() {
   const queryClient = useQueryClient();

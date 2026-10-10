@@ -6,9 +6,7 @@ import { useEffect } from "react";
 import { AlertTriangleIcon } from "@/components/dashboard/icons";
 import { Button, Card, CardContent } from "@/components/admin/primitives";
 
-/* ----------------------------------------------------------------------
-   /dashboard error boundary
-   ---------------------------------------------------------------------- */
+
 
 export default function DashboardError({
   error,

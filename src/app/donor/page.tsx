@@ -50,13 +50,7 @@ import type {
   Priority,
 } from "@/types";
 
-/* ----------------------------------------------------------------------
-   /donor — Donor dashboard
-   ----------------------------------------------------------------------
-   Renders the donor's availability toggle, profile summary (or a CTA
-   to /donor/profile when missing), the active assignments, a preview
-   of compatible requests, and a preview of recent donations.
-   ---------------------------------------------------------------------- */
+
 
 const HISTORY_LIMIT = 5;
 const REQUESTS_LIMIT = 5;

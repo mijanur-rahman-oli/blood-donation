@@ -39,9 +39,7 @@ import {
 import { toast } from "@/app/providers";
 import type { PaginatedResult, Payment } from "@/types";
 
-/* ----------------------------------------------------------------------
-   /dashboard/payments — Payment history
-   ---------------------------------------------------------------------- */
+
 
 export default function PaymentsPage() {
   const { searchParams } = useUpdateSearchParams();

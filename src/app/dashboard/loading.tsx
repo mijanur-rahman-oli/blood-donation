@@ -5,12 +5,7 @@ import {
   Skeleton,
 } from "@/components/admin/primitives";
 
-/* ----------------------------------------------------------------------
-   /dashboard loading skeleton
-   ----------------------------------------------------------------------
-   Mirrors the real overview layout: heading + 4 mini stat cards + a
-   list of 3 request cards.
-   ---------------------------------------------------------------------- */
+
 
 export default function DashboardLoading() {
   return (

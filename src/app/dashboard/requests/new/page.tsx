@@ -30,13 +30,7 @@ import { bloodRequestWizardSchema, type BloodRequestWizardInput } from "@/lib/zo
 import { ArrowLeftIcon, CheckIcon } from "@/components/dashboard/icons";
 import { toast } from "@/app/providers";
 
-/* ----------------------------------------------------------------------
-   /dashboard/requests/new — 3-step wizard
-   ----------------------------------------------------------------------
-   RHF + Zod. State machine: 1 (Patient) → 2 (Hospital) → 3 (Contact) →
-   submit. Each Next click validates only that step's fields; Submit
-   runs the full schema.
-   ---------------------------------------------------------------------- */
+
 
 const STEP_LABELS = ["Patient", "Hospital", "Contact"] as const;
 

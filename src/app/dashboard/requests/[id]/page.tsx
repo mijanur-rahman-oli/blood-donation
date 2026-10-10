@@ -5,17 +5,7 @@ import { useParams } from "next/navigation";
 import RequestDetail from "@/components/dashboard/RequestDetail";
 import { Skeleton } from "@/components/admin/primitives";
 
-/* ----------------------------------------------------------------------
-   /dashboard/requests/[id]
-   ----------------------------------------------------------------------
-   Client component. The whole page is a Client Component so the
-   Server Component prerender pass never touches it. `useParams()`
-   returns the dynamic `id` and we hand it to <RequestDetail />.
 
-   No `metadata` or `generateMetadata` is exported on this route, so
-   the framework does not try to compute per-route metadata. The root
-   layout's static `metadata` applies to every request.
-   ---------------------------------------------------------------------- */
 
 export default function RequestDetailPage() {
   const params = useParams<{ id: string }>();

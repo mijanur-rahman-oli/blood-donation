@@ -35,14 +35,6 @@ import type {
   RequestStatus,
 } from "@/types";
 
-/* ----------------------------------------------------------------------
-   /dashboard — Requester overview
-   ----------------------------------------------------------------------
-   Pulls the most recent 5 blood requests, derives the four KPI counts
-   from that list (good enough for a "personal activity" overview), and
-   renders a primary CTA + recent-requests card with empty/error/
-   loading/success states.
-   ---------------------------------------------------------------------- */
 
 const RECENT_LIMIT = 5;
 

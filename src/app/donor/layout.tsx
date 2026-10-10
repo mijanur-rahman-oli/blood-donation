@@ -4,14 +4,7 @@ import { RoleGuard } from "@/components/shared/RoleGuard";
 
 import { DonorSidebar, DonorTopbar } from "@/components/donor/DonorSidebar";
 
-/* ----------------------------------------------------------------------
-   (donor) layout
-   ----------------------------------------------------------------------
-   Server component. Wraps every donor page in
-   <RoleGuard allow={["DONOR"]>. No public Navbar or Footer is mounted
-   here — the root layout's <LayoutChrome> already suppresses both for
-   /donor/*.
-   ---------------------------------------------------------------------- */
+
 
 export default function DonorLayout({ children }: { children: ReactNode }) {
   return (

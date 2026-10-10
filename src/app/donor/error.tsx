@@ -6,9 +6,6 @@ import { useEffect } from "react";
 import { AlertTriangleIcon } from "@/components/donor/icons";
 import { Button, Card, CardContent } from "@/components/admin/primitives";
 
-/* ----------------------------------------------------------------------
-   /donor error boundary
-   ---------------------------------------------------------------------- */
 
 export default function DonorError({
   error,

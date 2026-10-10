@@ -27,12 +27,6 @@ import { formatRelativeTime, truncate } from "@/lib/utils";
 import { DropletIcon, MapPinIcon } from "@/components/donor/icons";
 import type { BloodGroup, BloodRequest, PaginatedResult, Priority } from "@/types";
 
-/* ----------------------------------------------------------------------
-   /donor/requests — Compatible requests
-   ----------------------------------------------------------------------
-   URL-synced ?page&limit&priority&sortBy. Grid is 1/2/3 columns by
-   viewport. Each card summarizes a compatible blood request.
-   ---------------------------------------------------------------------- */
 
 export default function DonorRequestsPage() {
   const { searchParams, update, remove } = useUpdateSearchParams();

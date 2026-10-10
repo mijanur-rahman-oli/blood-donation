@@ -7,14 +7,7 @@ import {
   RequesterTopbar,
 } from "@/components/dashboard/RequesterSidebar";
 
-/* ----------------------------------------------------------------------
-   (dashboard) layout
-   ----------------------------------------------------------------------
-   Server component. Wraps every requester page in
-   <RoleGuard allow={["REQUESTER"]>. No public Navbar or Footer is
-   mounted here — the root layout's <LayoutChrome> already suppresses
-   both for /dashboard/*.
-   ---------------------------------------------------------------------- */
+
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (

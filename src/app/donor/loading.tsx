@@ -5,12 +5,7 @@ import {
   Skeleton,
 } from "@/components/admin/primitives";
 
-/* ----------------------------------------------------------------------
-   /donor loading skeleton
-   ----------------------------------------------------------------------
-   Mirrors the dashboard layout: availability toggle placeholder + 3
-   assignment card skeletons.
-   ---------------------------------------------------------------------- */
+
 
 export default function DonorLoading() {
   return (

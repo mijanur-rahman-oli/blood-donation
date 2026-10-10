@@ -41,13 +41,7 @@ import {
 import { toast } from "@/app/providers";
 import type { BloodGroup, DonorProfile, User } from "@/types";
 
-/* ----------------------------------------------------------------------
-   /donor/profile
-   ----------------------------------------------------------------------
-   RHF + Zod. The page handles both create (when the donor has no
-   profile) and edit. The create form shares the same RHF instance as
-   the edit form by branching on the resolved schema.
-   ---------------------------------------------------------------------- */
+
 
 const DEFAULT_VALUES: DonorProfileFormInput = {
   bloodGroup: "O_POSITIVE",
