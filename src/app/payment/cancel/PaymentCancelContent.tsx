@@ -6,14 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/admin/primitives";
 import { truncate } from "@/lib/utils";
 
-/* ----------------------------------------------------------------------
-   /payment/cancel — Client content
-   ----------------------------------------------------------------------
-   The backend payment controller redirects here with `?tran_id=BDEP_xxx`
-   on cancel. We read BOTH `?paymentId=` (internal UUID, future-friendly)
-   and `?tran_id=` (gateway transactionId, what the backend actually
-   ships) and surface whichever the user can quote to support.
-   ---------------------------------------------------------------------- */
+
 
 export default function PaymentCancelContent() {
   const searchParams = useSearchParams();

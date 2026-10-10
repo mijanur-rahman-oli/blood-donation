@@ -9,17 +9,6 @@ import { APP_DESCRIPTION, APP_NAME } from "@/lib/constants";
 import "./globals.css";
 import { Providers } from "./providers";
 
-/* ----------------------------------------------------------------------
-   Root layout
-   ----------------------------------------------------------------------
-   - Loads Inter via `next/font/google` (no layout shift).
-   - Wires the metadata API: title template, description, OpenGraph,
-     Twitter, canonical URL, robots hints.
-   - Renders the Providers tree, then <LayoutChrome>{children}</LayoutChrome>
-     which conditionally mounts the public <Navbar /> + <Footer /> —
-     never on /admin, /dashboard, /donor, /login, /register, /payment.
-   - Mounts <BackToTop /> and the global <Toaster /> once, at the root.
-   ---------------------------------------------------------------------- */
 
 const inter = Inter({
   subsets: ["latin"],

@@ -3,13 +3,6 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
-/* ----------------------------------------------------------------------
-   /error — Global error boundary
-   ----------------------------------------------------------------------
-   The App Router renders this whenever a route segment in the same tree
-   throws during render or data fetching. The `reset` callback re-tries
-   the boundary's children.
-   ---------------------------------------------------------------------- */
 
 interface GlobalErrorProps {
   error: Error & { digest?: string };

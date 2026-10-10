@@ -3,15 +3,6 @@ import type { Metadata } from "next";
 import { UnauthorizedActions } from "@/components/shared/UnauthorizedActions";
 import { APP_NAME } from "@/lib/constants";
 
-/* ----------------------------------------------------------------------
-   /unauthorized
-   ----------------------------------------------------------------------
-   Server component. Renders when the middleware (or RoleGuard) decides
-   the signed-in user does not have permission to view the requested
-   page. Provides two recovery actions: "Go to Home" (router push, no
-   full reload) and "Log out" (calls /api/auth/logout then hard-
-   navigates to /login so the store and query cache are reset).
-   ---------------------------------------------------------------------- */
 
 export const metadata: Metadata = {
   title: "Access Denied",

@@ -3,11 +3,6 @@ import type { Metadata } from "next";
 
 import PaymentCancelContent from "./PaymentCancelContent";
 
-/* ----------------------------------------------------------------------
-   /payment/cancel — Server wrapper
-   ----------------------------------------------------------------------
-   `useSearchParams()` requires a Suspense boundary.
-   ---------------------------------------------------------------------- */
 
 export const metadata: Metadata = {
   title: "Payment Cancelled",

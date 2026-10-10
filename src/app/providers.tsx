@@ -7,15 +7,6 @@ import { toast as sonnerToast } from "sonner";
 import { queryClient } from "@/lib/queryClient";
 import { useAuthStore } from "@/store/authStore";
 
-/* ----------------------------------------------------------------------
-   Toast helper
-   ----------------------------------------------------------------------
-   Re-export sonner's `toast` so the rest of the app can `import { toast }
-   from "@/app/providers"` and remain provider-agnostic. The actual
-   <Toaster /> is mounted once at the root in `src/app/layout.tsx`; this
-   file only exposes the typed call helpers.
-   ---------------------------------------------------------------------- */
-
 export const toast = {
   success(title: string, description?: string) {
     if (description) sonnerToast.success(title, { description });

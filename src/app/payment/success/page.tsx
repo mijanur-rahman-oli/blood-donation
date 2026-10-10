@@ -3,13 +3,6 @@ import type { Metadata } from "next";
 
 import PaymentSuccessContent from "./PaymentSuccessContent";
 
-/* ----------------------------------------------------------------------
-   /payment/success — Server wrapper
-   ----------------------------------------------------------------------
-   `useSearchParams()` requires a Suspense boundary in Next 15+, so the
-   client content is split out and rendered here. Exports metadata so
-   this page is indexable.
-   ---------------------------------------------------------------------- */
 
 export const metadata: Metadata = {
   title: "Payment Successful",

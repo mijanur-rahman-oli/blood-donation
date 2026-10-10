@@ -1,12 +1,5 @@
 import type { MetadataRoute } from "next";
 
-/* ----------------------------------------------------------------------
-   sitemap.ts
-   ----------------------------------------------------------------------
-   Lists ONLY public marketing + auth routes. Protected pages (/admin,
-   /dashboard, /donor) and the /api tree are intentionally excluded.
-   ---------------------------------------------------------------------- */
-
 const BASE_URL =
   process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
   "http://localhost:3000";

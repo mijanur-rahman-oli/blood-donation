@@ -2,13 +2,6 @@ import Link from "next/link";
 
 import { GoBackButton } from "@/components/shared/GoBackButton";
 
-/* ----------------------------------------------------------------------
-   /not-found — 404
-   ----------------------------------------------------------------------
-   Server component. Only the "Go Back" button is client-side; everything
-   else (the illustration, the copy, the home button) is static markup
-   rendered on the server.
-   ---------------------------------------------------------------------- */
 
 export const metadata = {
   title: "Page Not Found",

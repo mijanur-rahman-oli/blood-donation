@@ -1,12 +1,5 @@
 import { APP_URL } from "@/lib/constants";
 
-/* ----------------------------------------------------------------------
-   Services (/services)
-   ----------------------------------------------------------------------
-   Server-rendered. Two-column feature breakdown: what donors get vs
-   what requesters get. Each card pairs a feature title with a short
-   description and an inline-SVG icon (no external icon library).
-   ---------------------------------------------------------------------- */
 
 export const metadata = {
   title: "Services",

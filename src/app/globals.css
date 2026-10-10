@@ -1,13 +1,5 @@
 @import "tailwindcss";
 
-/* ----------------------------------------------------------------------
-   shadcn/ui CSS variables (HSL channels)
-   ----------------------------------------------------------------------
-   Tokens are sourced from PROJECT.md -> "UI/UX Design System > Color
-   Palette" and the shadcn convention of storing HSL channels (without
-   the `hsl()` wrapper) so Tailwind utilities can apply opacity
-   modifiers via `bg-primary/10` etc.
-   ---------------------------------------------------------------------- */
 @layer base {
   :root {
     --background: 0 0% 100%;

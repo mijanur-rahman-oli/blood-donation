@@ -20,18 +20,6 @@ import { formatCurrency, formatDateTime, truncate, cn } from "@/lib/utils";
 import { PAYMENT_PURPOSE_LABELS } from "@/lib/constants";
 import type { Payment, PaymentStatus } from "@/types";
 
-/* ----------------------------------------------------------------------
-   /payment/success — Payment success
-   ----------------------------------------------------------------------
-   Reads `?paymentId=` (preferred) OR `?tran_id=` / `?tranId=` (the
-   SSLCommerz redirect from the backend payment controller sends the
-   gateway's transactionId, e.g. `BDEP_xxx`, NOT our internal UUID).
-
-   When only a `tran_id` is present we list the user's recent payments
-   and find the matching one by `payment.transactionId`. We poll every
-   2 seconds for up to 5 attempts to allow the IPN to reconcile, then
-   stop.
-   ---------------------------------------------------------------------- */
 
 const POLL_INTERVAL_MS = 2_000;
 const MAX_POLLS = 5;
